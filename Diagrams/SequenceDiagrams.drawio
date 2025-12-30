@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2025-12-08T11:15:00.000Z" agent="5.0" version="20.6.3">
+  <diagram id="GenFXSeq" name="Sequence Diagram">
+    <mxGraphModel dx="1000" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Simple valid drawio content (minimal, guaranteed to load) -->
+        <mxCell id="10" value="Enseignant" style="rounded=1;whiteSpace=wrap;html=1;" parent="1">
+          <mxGeometry x="40" y="40" width="120" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="11" value="Projet" style="rounded=1;whiteSpace=wrap;html=1;" parent="1">
+          <mxGeometry x="240" y="40" width="120" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="12" value="DocumentSource" style="rounded=1;whiteSpace=wrap;html=1;" parent="1">
+          <mxGeometry x="440" y="40" width="140" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="13" value="Exercice" style="rounded=1;whiteSpace=wrap;html=1;" parent="1">
+          <mxGeometry x="640" y="40" width="120" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="14" value="FeuilleExercice" style="rounded=1;whiteSpace=wrap;html=1;" parent="1">
+          <mxGeometry x="840" y="40" width="140" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- simple arrows -->
+        <mxCell id="20" value="createProject()" style="endArrow=classic;html=1;" parent="1" source="10" target="11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="21" value="uploadDoc()" style="endArrow=classic;html=1;" parent="1" source="11" target="12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="22" value="extractText()" style="endArrow=classic;html=1;" parent="1" source="11" target="12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="23" value="generateQuestions()" style="endArrow=classic;html=1;" parent="1" source="11" target="13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="24" value="createFeuille()" style="endArrow=classic;html=1;" parent="1" source="11" target="14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

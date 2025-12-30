@@ -1,0 +1,59 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/28.2.5 Chrome/138.0.7204.251 Electron/37.6.1 Safari/537.36" version="28.2.5">
+  <diagram id="seq" name="Sequence">
+    <mxGraphModel dx="1042" dy="627" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ens" value="Enseignant" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="40" y="40" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="proj" value="Projet" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="280" y="210" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="doc" value="DocumentSource" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="40" y="410" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ex" value="Exercice" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="560" y="410" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="fe" value="FeuilleExercice" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="540" y="40" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="m1" value="createProject()" style="endArrow=classic;html=1;" parent="1" source="ens" target="proj" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m2" value="uploadDoc()" style="endArrow=classic;html=1;" parent="1" source="ens" target="proj" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m3" value="validateFormat()" style="endArrow=classic;html=1;" parent="1" source="proj" target="doc" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m4" value="extractText()" style="endArrow=classic;html=1;" parent="1" source="proj" target="doc" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m5" value="texte_extrait" style="dashed=1;endArrow=open;html=1;" parent="1" source="doc" target="proj" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m6" value="generateQuestions()" style="endArrow=classic;html=1;" parent="1" source="proj" target="ex" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m7" value="createFeuille()" style="endArrow=classic;html=1;" parent="1" source="proj" target="fe" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m8" value="addExercice()" style="endArrow=classic;html=1;" parent="1" source="ex" target="fe" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m9" value="regenerate()" style="endArrow=classic;html=1;" parent="1" source="fe" target="fe" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m10" value="Feuille prête" style="dashed=1;endArrow=open;html=1;" parent="1" source="fe" target="ens" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="340" y="130" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
