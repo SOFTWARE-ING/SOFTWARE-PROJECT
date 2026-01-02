@@ -3,7 +3,7 @@ import Dashboard from "./components/pages/Dashboard"
 function App() {
 
   return (
-    <div className="dark:bg-gray-900 h-full flex dark:text-white text-black ">
+    <div className=" no-scrollbar overflow-y-auto h-full">
       <Dashboard/>
     </div>
   )

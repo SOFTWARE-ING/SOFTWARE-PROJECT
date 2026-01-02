@@ -3,12 +3,12 @@ import { Cpu, Linkedin } from 'lucide-react'
 
 export default function Topbar() {
     return (
-        <div className="w-screen bg-slate-100/50 dark:bg-slate-900 border-b border-slate-300 ring-0.5 dark:border-slate-800 h-16 p-0">
+        <div className="top-0 left-0 right-0 z-50 w-screen bg-slate-100/50 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 h-16 p-0">
             <div className="p-4 flex items-center justify-between">
                 <div className="flex flex-col space-x-4">
                     <div className='flex space-x-2 '>
                         <Cpu className='w-6 h-6 dark:text-slate-200 ' />
-                        <h2 className="text-lg font-bold">GenEx</h2>
+                        <h2 className="text-lg font-bold">GenEx-PDF</h2>
                     </div>
                 </div>
                 

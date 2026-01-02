@@ -31,7 +31,7 @@ export default function TopMenubar() {
 
 
 // State management
-    const [isLanguageSelected, setIsLanguageSelected] = useState('en'); // eslint-disable-line no-unused-vars
+    const [isLanguageSelected, setIsLanguageSelected] = useState('en'); 
     // Theme state
     const [isThemeSelected, setIsThemeSelected] = useState(() => {
         return localStorage.getItem("theme") || "system"
@@ -61,7 +61,7 @@ export default function TopMenubar() {
 
 // Render component 
     return (
-        <div className='flex  mx-0 px-0 space-x-4 '>
+        <div className='flex  mx-0 space-x-4 border-b border-slate-300 dark:border-slate-800 items-center justify-between px-4 py-2 '>
             <div className='flex items-center space-x-4 '>
                 <div className='p-2 ml-4 bg-linear-to-br items-center cursor-pointer active:scale-95 shadow-sm shadow-slate-400 justify-center flex rounded-xs from-emerald-300 via-blue-300 to-purple-500  '>
                     <div className=' flex items-center justify-center'>
