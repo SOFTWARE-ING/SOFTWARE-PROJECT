@@ -70,7 +70,7 @@ const ProjectRow = ({ name, type, date, status }) => {
   };
 
   return (
-    <tr className="border-b border-slate-200 dark:border-slate-800 last:border-none">
+    <tr className="border-b border-slate-200 dark:border-slate-800 last:border-none transition-all ease-in-out duration-300 ">
       <td className="py-3 pl-4 font-medium">{name}</td>
       <td className="py-3">{type}</td>
       <td className="py-3 text-slate-500">{date}</td>
