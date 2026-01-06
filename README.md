@@ -194,22 +194,12 @@ git merge --abort
 
 ---
 
-## 🧠 Bonnes pratiques (niveau pro)
+## 🧠 Bonnes pratiques
 
 * Commits courts et explicites
 * Toujours `pull` avant de coder
 * Toujours vérifier sa branche avant `git add`
 * Ne jamais versionner `node_modules` ou `__pycache__`
-
----
-
-## 🎉 Conclusion
-
-Ce dépôt suit un **workflow Git propre, scalable et professionnel**, adapté :
-
-* aux projets sérieux
-* au travail en équipe
-* au déploiement sans stress
 
 🔥 Respecte les règles → zéro conflits → maximum efficacité.
 
