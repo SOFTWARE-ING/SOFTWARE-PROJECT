@@ -31,6 +31,7 @@ def login(
     token = create_access_token({"sub": user.id})
 
     return {
+        "user": user,
         "access_token": token,
         "token_type": "bearer"
     }

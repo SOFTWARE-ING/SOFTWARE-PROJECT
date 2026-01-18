@@ -6,6 +6,8 @@ import TranslateScreen from './screens/TranslateScreen.jsx'
 import LibraryScreen from './screens/LibraryScreen.jsx'
 import NewProjectScreen from './screens/NewProjectScreen.jsx'
 import ProjectsScreen from './screens/ProjectsScreen.jsx'
+import RegisterScreen from "./screens/RegisterScreen.jsx"
+import LoginScreen from "./screens/LoginScreen.jsx"
 
 export default function Content() {
   return (
@@ -18,6 +20,8 @@ export default function Content() {
         <Route path="/library" element={<LibraryScreen />} />
         <Route path="/new-project" element={<NewProjectScreen />} />
         <Route path="/projects" element={<ProjectsScreen />} />
+        <Route path="/register" element={<RegisterScreen />} />
+        <Route path="/login" element={<LoginScreen />} />
       </Routes>
     </div>
   )

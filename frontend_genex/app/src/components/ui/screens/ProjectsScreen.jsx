@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Briefcase, Plus, Edit, Play, Eye, Download, Trash2, Settings, FileText, BookOpen } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Briefcase, Plus, Edit, Play, Eye, Download, Trash2, Settings, FileText, BookOpen, UserPlus, LogIn } from 'lucide-react'
 
 export default function ProjectsScreen() {
   const [projects] = useState([
@@ -77,10 +78,20 @@ export default function ProjectsScreen() {
             Mes Projets
           </h1>
         </div>
-        <button className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
-          <Plus className="h-4 w-4 mr-2" />
-          Nouveau Projet
-        </button>
+        <div className="flex gap-3">
+          <Link to="/register" className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
+            <UserPlus className="h-4 w-4 mr-2" />
+            Sign Up
+          </Link>
+          <Link to="/login" className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
+            <LogIn className="h-4 w-4 mr-2" />
+            Sign In
+          </Link>
+          <button className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
+            <Plus className="h-4 w-4 mr-2" />
+            Nouveau Projet
+          </button>
+        </div>
       </div>
 
       {/* Statistiques */}

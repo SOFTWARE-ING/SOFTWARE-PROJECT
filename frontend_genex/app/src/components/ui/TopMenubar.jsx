@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { PanelRightOpen, ChevronRight, Settings } from 'lucide-react'
 import ThemeToggle from './ThemeToggle'
 import Dropdown from './Dropdown'
-
+import { useAuth } from "../Context_api.jsx";
 
 // TopMenubar Component
 export default function TopMenubar() {
@@ -57,7 +57,17 @@ export default function TopMenubar() {
 
     }, [isThemeSelected]);
 
+    const { auth, getUser } = useAuth();
+    const user = getUser()
+    if (!auth.access_token) return null;
 
+    if (auth.isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
 // Render component 
     return (
@@ -70,7 +80,7 @@ export default function TopMenubar() {
                 </div>
                 <div className='flex flex-col '>
                     <h2 className="text-2xl text-slate-800 dark:text-slate-200 truncate tracking-[5px] font-black">Dashboard</h2>
-                    <p className='text-xs text-slate-400 '> Welcome back! <span className='font-bold py-0.5 px-1 dark:bg-emerald-300/20 bg-emerald-500/20 rounded-md text-emerald-500'>Magistral</span></p>
+                    <p className='text-xs text-slate-400 '> Welcome back! <span className='font-bold py-0.5 px-1 dark:bg-emerald-300/20 bg-emerald-500/20 rounded-md text-emerald-500'>{user?.profile.first_name}</span></p>
                 </div>
             </div>
             <div className='flex-1 flex justify-end items-center space-x-4'>
