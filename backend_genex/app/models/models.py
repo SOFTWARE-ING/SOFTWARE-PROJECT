@@ -1,228 +1,205 @@
 from datetime import datetime
-
-from sqlalchemy import (JSON, TIMESTAMP, BigInteger, Column, Enum, ForeignKey,
-                        Integer, String, Text)
+import uuid
+from sqlalchemy import (
+    JSON, TIMESTAMP, BigInteger, Column, Enum, ForeignKey,
+    Integer, String, Text
+)
 from sqlalchemy.orm import relationship
-
 from db.base import Base
 
-# =============================================================================
-# UTILISATEURS
-# =============================================================================
+# ==========================
+# ROLES
+# ==========================
+class Role(Base):
+    __tablename__ = "roles"
+
+    id = Column(String(36), primary_key=True)
+    role_name = Column(String(50), unique=True, nullable=False)
+    description = Column(String(255))
+
+    users = relationship("User", back_populates="role")
 
 
+# ==========================
+# USERS
+# ==========================
 class User(Base):
-    __tablename__ = "utilisateurs"
+    __tablename__ = "users"
 
-    uid = Column(String(36), primary_key=True, index=True)
+    id = Column(String(36), primary_key=True, index=True)
     email = Column(String(191), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    date_creation = Column(TIMESTAMP, default=datetime.utcnow)
-    type_utilisateur = Column(
-        Enum("ENSEIGNANT", "ETUDIANT", name="user_type_enum"), nullable=False
-    )
+    role_id = Column(String(36), ForeignKey("roles.id", ondelete="RESTRICT"), nullable=False)
+    created_at = Column(TIMESTAMP, default=datetime.utcnow)
+    profile = Column(JSON)
 
-    enseignant = relationship(
-        "Teacher",
-        back_populates="utilisateur",
-        uselist=False,
-        cascade="all, delete-orphan",
+    role = relationship("Role", back_populates="users")
+    source_documents = relationship(
+        "SourceDocument", back_populates="owner", cascade="all, delete-orphan"
     )
-
-    statistiques = relationship(
-        "StatistiqueUtilisation",
-        back_populates="utilisateur",
-        cascade="all, delete-orphan",
+    projects = relationship(
+        "Project", back_populates="owner", cascade="all, delete-orphan"
+    )
+    usage_statistics = relationship(
+        "UsageStatistic", back_populates="user", cascade="all, delete-orphan"
     )
 
 
-# =============================================================================
-# ENSEIGNANTS
-# =============================================================================
+# ==========================
+# SOURCE DOCUMENTS
+# ==========================
+class SourceDocument(Base):
+    __tablename__ = "source_documents"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    filename = Column(String(255), nullable=False)
+    file_type = Column(Enum("PDF", "DOCX", "TXT", name="file_type_enum"), nullable=False)
+    storage_url = Column(String(500), nullable=False)
+    extracted_text = Column(Text)
+    original_language = Column(String(10), default="en")
+    uploaded_at = Column(TIMESTAMP, default=datetime.utcnow)
+    status = Column(String, default="PENDING")  # ou nullable=False
 
 
-class Teacher(Base):
-    __tablename__ = "enseignants"
-
-    user_uid = Column(
-        String(36), ForeignKey("utilisateurs.uid", ondelete="CASCADE"), primary_key=True
+    owner = relationship("User", back_populates="source_documents")
+    sections = relationship(
+        "DocumentSection", back_populates="document", cascade="all, delete-orphan"
     )
-
-    credits = Column(Integer, default=0)
-    plan = Column(Enum("FREE", "PRO", name="plan_enum"), default="FREE")
-    institution = Column(String(100))
-
-    utilisateur = relationship("User", back_populates="enseignant")
-    projets = relationship(
-        "Project", back_populates="enseignant", cascade="all, delete-orphan"
+    translations = relationship(
+        "Translation", back_populates="document", cascade="all, delete-orphan"
     )
+    projects = relationship("Project", back_populates="document")
 
 
-# =============================================================================
-# DOCUMENTS SOURCE
-# =============================================================================
-
-
-class DocumentSource(Base):
-    __tablename__ = "documents_source"
+# ==========================
+# DOCUMENT SECTIONS
+# ==========================
+class DocumentSection(Base):
+    __tablename__ = "document_sections"
 
     id = Column(String(36), primary_key=True)
-    nom_fichier = Column(String(255), nullable=False)
-    url_stockage = Column(String(500), nullable=False)
-    texte_extrait = Column(Text)
-    langue_origine = Column(String(10), default="fr")
-    date_upload = Column(TIMESTAMP, default=datetime.utcnow)
+    document_id = Column(String(36), ForeignKey("source_documents.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(255))
+    page_start = Column(Integer)
+    page_end = Column(Integer)
+    text = Column(Text)
 
-    traductions = relationship(
-        "Traduction", back_populates="document", cascade="all, delete-orphan"
-    )
-
-    projets = relationship("Project", back_populates="document")
+    document = relationship("SourceDocument", back_populates="sections")
 
 
-# =============================================================================
-# TRADUCTIONS
-# =============================================================================
-
-
-class Traduction(Base):
-    __tablename__ = "traductions"
+# ==========================
+# TRANSLATIONS
+# ==========================
+class Translation(Base):
+    __tablename__ = "translations"
 
     id = Column(String(36), primary_key=True)
-    document_id = Column(
-        String(36),
-        ForeignKey("documents_source.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    langue_cible = Column(String(10), nullable=False)
-    url_pdf_traduit = Column(String(500), nullable=False)
-    date_traduction = Column(TIMESTAMP, default=datetime.utcnow)
+    document_id = Column(String(36), ForeignKey("source_documents.id", ondelete="CASCADE"), nullable=False)
+    target_language = Column(String(10), nullable=False)
+    translated_pdf_url = Column(String(500), nullable=False)
+    translated_at = Column(TIMESTAMP, default=datetime.utcnow)
 
-    document = relationship("DocumentSource", back_populates="traductions")
+    document = relationship("SourceDocument", back_populates="translations")
 
 
-# =============================================================================
-# PROJETS
-# =============================================================================
-
-
+# ==========================
+# PROJECTS
+# ==========================
 class Project(Base):
-    __tablename__ = "projets"
+    __tablename__ = "projects"
 
     id = Column(String(36), primary_key=True)
-    enseignant_uid = Column(
-        String(36),
-        ForeignKey("enseignants.user_uid", ondelete="CASCADE"),
-        nullable=False,
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    document_id = Column(String(36), ForeignKey("source_documents.id", ondelete="SET NULL"))
+    title = Column(String(255), nullable=False)
+    config = Column(JSON, nullable=False)
+    created_at = Column(TIMESTAMP, default=datetime.utcnow)
+
+    owner = relationship("User", back_populates="projects")
+    document = relationship("SourceDocument", back_populates="projects")
+    ai_generations = relationship(
+        "AIGeneration", back_populates="project", cascade="all, delete-orphan"
     )
-    document_id = Column(
-        String(36), ForeignKey("documents_source.id", ondelete="SET NULL")
-    )
-
-    titre = Column(String(255), nullable=False)
-    config = Column(JSON)
-    date_creation = Column(TIMESTAMP, default=datetime.utcnow)
-
-    enseignant = relationship("Teacher", back_populates="projets")
-    document = relationship("DocumentSource", back_populates="projets")
-
-    feuille = relationship(
-        "FeuilleExercice",
-        back_populates="projet",
-        uselist=False,
-        cascade="all, delete-orphan",
+    exercise_sheet = relationship(
+        "ExerciseSheet", back_populates="project", uselist=False, cascade="all, delete-orphan"
     )
 
 
-# =============================================================================
-# FEUILLES D'EXERCICE
-# =============================================================================
-
-
-class FeuilleExercice(Base):
-    __tablename__ = "feuilles_exercice"
+# ==========================
+# AI GENERATIONS
+# ==========================
+class AIGeneration(Base):
+    __tablename__ = "ai_generations"
 
     id = Column(String(36), primary_key=True)
-    projet_id = Column(
-        String(36),
-        ForeignKey("projets.id", ondelete="CASCADE"),
-        nullable=False,
-        unique=True,
-    )
+    project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    model_name = Column(String(50), nullable=False)
+    prompt = Column(Text, nullable=False)
+    raw_response = Column(Text)
+    tokens_used = Column(Integer, default=0)
+    status = Column(Enum("SUCCESS", "FAILED", name="generation_status_enum"), default="SUCCESS")
+    generated_at = Column(TIMESTAMP, default=datetime.utcnow)
 
-    url_pdf_sujet = Column(String(500))
-    url_pdf_correction = Column(String(500))
+    project = relationship("Project", back_populates="ai_generations")
+
+
+# ==========================
+# EXERCISE SHEETS
+# ==========================
+class ExerciseSheet(Base):
+    __tablename__ = "exercise_sheets"
+
+    id = Column(String(36), primary_key=True)
+    project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, unique=True)
+    pdf_url_questions = Column(String(500))
+    pdf_url_answers = Column(String(500))
     qr_code_link = Column(String(255))
+    status = Column(Enum("DRAFT", "GENERATED", "PUBLISHED", name="sheet_status_enum"), default="DRAFT")
+    generated_at = Column(TIMESTAMP, default=datetime.utcnow)
 
-    statut = Column(
-        Enum("BROUILLON", "GENERE", "PUBLIE", name="feuille_status_enum"),
-        default="BROUILLON",
-    )
-
-    date_generation = Column(TIMESTAMP, default=datetime.utcnow)
-
-    projet = relationship("Project", back_populates="feuille")
-    exercices = relationship(
-        "Exercice", back_populates="feuille", cascade="all, delete-orphan"
+    project = relationship("Project", back_populates="exercise_sheet")
+    exercises = relationship(
+        "Exercise", back_populates="sheet", cascade="all, delete-orphan"
     )
 
 
-# =============================================================================
-# EXERCICES
-# =============================================================================
-
-
-class Exercice(Base):
-    __tablename__ = "exercices"
+# ==========================
+# EXERCISES
+# ==========================
+class Exercise(Base):
+    __tablename__ = "exercises"
 
     id = Column(String(36), primary_key=True)
-    feuille_id = Column(
-        String(36),
-        ForeignKey("feuilles_exercice.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-
-    type_exercice = Column(
+    sheet_id = Column(String(36), ForeignKey("exercise_sheets.id", ondelete="CASCADE"), nullable=False)
+    exercise_type = Column(
         Enum(
-            "QCM",
-            "CASE_A_COCHER",
-            "OUVERTE",
-            "TROUS",
-            "VRAI_FAUX",
-            "TABLEAU_CROISE",
-            "SCHEMA",
-            name="exercise_type_enum",
+            "MCQ", "CHECKBOX", "OPEN", "FILL_IN", "TRUE_FALSE", "CROSS_TABLE", "DIAGRAM",
+            name="exercise_type_enum"
         ),
-        nullable=False,
+        nullable=False
     )
+    question_text = Column(Text, nullable=False)
+    correct_answer = Column(Text)
+    exercise_metadata = Column(JSON())  # difficulty, questions count, etc.
+    source_reference = Column(JSON)  # reference to document/section
+    version = Column(Integer, default=1)
+    is_active = Column(Integer, default=1)
+    display_order = Column(Integer, default=0)
 
-    enonce = Column(Text, nullable=False)
-    reponse_correcte = Column(Text)
-    metadata_exo = Column(JSON)
-    ordre_affichage = Column(Integer, default=0)
-
-    feuille = relationship("FeuilleExercice", back_populates="exercices")
-
-
-# =============================================================================
-# STATISTIQUES UTILISATION
-# =============================================================================
+    sheet = relationship("ExerciseSheet", back_populates="exercises")
 
 
-class StatistiqueUtilisation(Base):
-    __tablename__ = "statistiques_utilisation"
+# ==========================
+# USAGE STATISTICS
+# ==========================
+class UsageStatistic(Base):
+    __tablename__ = "usage_statistics"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    user_uid = Column(
-        String(36), ForeignKey("utilisateurs.uid", ondelete="CASCADE"), nullable=False
-    )
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    action = Column(Enum("EXERCISE_GENERATION", "PDF_TRANSLATION", "PDF_EXPORT", name="usage_action_enum"), nullable=False)
+    credits_used = Column(Integer, default=1)
+    action_date = Column(TIMESTAMP, default=datetime.utcnow)
 
-    action = Column(
-        Enum("GENERATION_EXO", "TRADUCTION_PDF", "EXPORT_PDF", name="action_stat_enum"),
-        nullable=False,
-    )
-
-    consommation_credits = Column(Integer, default=1)
-    date_action = Column(TIMESTAMP, default=datetime.utcnow)
-
-    utilisateur = relationship("User", back_populates="statistiques")
+    user = relationship("User", back_populates="usage_statistics")
