@@ -1,244 +1,315 @@
+
+-- DROP DATABASE IF EXISTS genex_db;
 -- =============================================================================
--- Nom de la base de données : genex_db
--- Description : Schéma physique complet et données de test (Seed)
--- Cible : MariaDB 10.4+
+-- Database: genex_db
+-- Description: Schema for GenEx exercise generation & document translation SaaS
+-- Target: MariaDB 10.4+
 -- =============================================================================
 
-CREATE DATABASE IF NOT EXISTS genex_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS genex_db
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
 USE genex_db;
 
--- Désactiver temporairement les vérifications de clés étrangères pour la création
 SET FOREIGN_KEY_CHECKS = 0;
 
--- -----------------------------------------------------------------------------
--- 1. Table UTILISATEURS
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS utilisateurs (
-    uid VARCHAR(36) PRIMARY KEY,
+-- ==========================
+-- ROLES
+-- ==========================
+CREATE TABLE roles (
+    id VARCHAR(36) PRIMARY KEY,
+    role_name VARCHAR(50) UNIQUE NOT NULL, -- e.g., STUDENT, TEACHER, ADMIN
+    description VARCHAR(255)
+) ENGINE=InnoDB;
+
+-- ==========================
+-- USERS
+-- ==========================
+CREATE TABLE users (
+    id VARCHAR(36) PRIMARY KEY,
     email VARCHAR(191) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    type_utilisateur ENUM('ENSEIGNANT', 'ETUDIANT') NOT NULL,
+    role_id VARCHAR(36) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    profile JSON, -- optional metadata (preferences, plan, etc.)
+    CONSTRAINT fk_user_role
+        FOREIGN KEY (role_id) REFERENCES roles(id)
+        ON DELETE RESTRICT,
     INDEX idx_email (email)
-) ENGINE=Aria;
-
--- -----------------------------------------------------------------------------
--- 2. Table ENSEIGNANTS
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS enseignants (
-    user_uid VARCHAR(36) PRIMARY KEY,
-    credits INT DEFAULT 0,
-    plan ENUM('FREE', 'PRO') DEFAULT 'FREE',
-    institution VARCHAR(100),
-    CONSTRAINT fk_enseignant_user FOREIGN KEY (user_uid) 
-        REFERENCES utilisateurs(uid) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- -----------------------------------------------------------------------------
--- 3. Table DOCUMENTS_SOURCE
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS documents_source (
+-- ==========================
+-- SOURCE DOCUMENTS
+-- ==========================
+CREATE TABLE source_documents (
     id VARCHAR(36) PRIMARY KEY,
-    nom_fichier VARCHAR(255) NOT NULL,
-    url_stockage VARCHAR(500) NOT NULL,
-    texte_extrait LONGTEXT,
-    langue_origine VARCHAR(10) DEFAULT 'fr',
-    date_upload TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    user_id VARCHAR(36) NOT NULL, -- owner
+    filename VARCHAR(255) NOT NULL,
+    file_type ENUM('PDF', 'DOCX', 'TXT') NOT NULL,
+    storage_url VARCHAR(500) NOT NULL,
+    extracted_text LONGTEXT,
+    original_language VARCHAR(10) DEFAULT 'en',
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_doc_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- -----------------------------------------------------------------------------
--- 4. Table TRADUCTIONS
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS traductions (
+-- ==========================
+-- DOCUMENT SECTIONS
+-- ==========================
+CREATE TABLE document_sections (
     id VARCHAR(36) PRIMARY KEY,
     document_id VARCHAR(36) NOT NULL,
-    langue_cible VARCHAR(10) NOT NULL,
-    url_pdf_traduit VARCHAR(500) NOT NULL,
-    date_traduction TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_trad_doc FOREIGN KEY (document_id) 
-        REFERENCES documents_source(id) ON DELETE CASCADE
+    title VARCHAR(255),
+    page_start INT,
+    page_end INT,
+    text LONGTEXT,
+    CONSTRAINT fk_section_document
+        FOREIGN KEY (document_id) REFERENCES source_documents(id)
+        ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- -----------------------------------------------------------------------------
--- 5. Table PROJETS
--- -----------------------------------------------------------------------------
+CREATE INDEX idx_document_sections ON document_sections(document_id);
 
-CREATE TABLE IF NOT EXISTS projets (
+-- ==========================
+-- TRANSLATIONS
+-- ==========================
+CREATE TABLE translations (
     id VARCHAR(36) PRIMARY KEY,
-    enseignant_uid VARCHAR(36) NOT NULL,
+    document_id VARCHAR(36) NOT NULL,
+    target_language VARCHAR(10) NOT NULL,
+    translated_pdf_url VARCHAR(500) NOT NULL,
+    translated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_translation_document
+        FOREIGN KEY (document_id) REFERENCES source_documents(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ==========================
+-- PROJECTS (generation projects)
+-- ==========================
+CREATE TABLE projects (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL, -- owner
     document_id VARCHAR(36),
-    titre VARCHAR(255) NOT NULL,
-    config LONGTEXT CHECK (JSON_VALID(config)),
-    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_projet_enseignant FOREIGN KEY (enseignant_uid) 
-        REFERENCES enseignants(user_uid) ON DELETE CASCADE,
-    CONSTRAINT fk_projet_doc FOREIGN KEY (document_id) 
-        REFERENCES documents_source(id) ON DELETE SET NULL
+    title VARCHAR(255) NOT NULL,
+    config JSON NOT NULL,
+    -- JSON exemple :
+    -- {
+    --   "total_exercises": 10,
+    --   "types_count": {"MCQ":3, "FILL_IN":7},
+    --   "questions_per_exercise": {"MCQ":5, "FILL_IN":3},
+    --   "difficulty_global": 2,
+    --   "difficulty_per_exercise": {"MCQ":2, "FILL_IN":3}
+    -- }
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_project_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_project_document
+        FOREIGN KEY (document_id) REFERENCES source_documents(id)
+        ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
--- -----------------------------------------------------------------------------
--- 6. Table FEUILLES_EXERCICE
--- -----------------------------------------------------------------------------
-
-CREATE TABLE IF NOT EXISTS feuilles_exercice (
+-- ==========================
+-- AI GENERATIONS (raw AI outputs)
+-- ==========================
+CREATE TABLE ai_generations (
     id VARCHAR(36) PRIMARY KEY,
-    projet_id VARCHAR(36) NOT NULL UNIQUE,
-    url_pdf_sujet VARCHAR(500),
-    url_pdf_correction VARCHAR(500),
+    project_id VARCHAR(36) NOT NULL,
+    model_name VARCHAR(50) NOT NULL,
+    prompt LONGTEXT NOT NULL,
+    raw_response LONGTEXT,
+    tokens_used INT DEFAULT 0,
+    status ENUM('SUCCESS', 'FAILED') DEFAULT 'SUCCESS',
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_generation_project
+        FOREIGN KEY (project_id) REFERENCES projects(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE INDEX idx_ai_generations_project ON ai_generations(project_id);
+
+-- ==========================
+-- EXERCISE SHEETS (final PDFs)
+-- ==========================
+CREATE TABLE exercise_sheets (
+    id VARCHAR(36) PRIMARY KEY,
+    project_id VARCHAR(36) NOT NULL UNIQUE,
+    pdf_url_questions VARCHAR(500),
+    pdf_url_answers VARCHAR(500),
     qr_code_link VARCHAR(255),
-    statut ENUM('BROUILLON', 'GENERE', 'PUBLIE') DEFAULT 'BROUILLON',
-    date_generation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_feuille_projet FOREIGN KEY (projet_id) 
-        REFERENCES projets(id) ON DELETE CASCADE
+    status ENUM('DRAFT', 'GENERATED', 'PUBLISHED') DEFAULT 'DRAFT',
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_sheet_project
+        FOREIGN KEY (project_id) REFERENCES projects(id)
+        ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- -----------------------------------------------------------------------------
--- 7. Table EXERCICES
--- -----------------------------------------------------------------------------
-
-CREATE TABLE IF NOT EXISTS exercices (
+-- ==========================
+-- EXERCISES (details of each generated exercise)
+-- ==========================
+CREATE TABLE exercises (
     id VARCHAR(36) PRIMARY KEY,
-    feuille_id VARCHAR(36) NOT NULL,
-    type_exercice ENUM('QCM', 'CASE_A_COCHER', 'OUVERTE', 'TROUS', 'VRAI_FAUX', 'TABLEAU_CROISE', 'SCHEMA') NOT NULL,
-    enonce TEXT NOT NULL,
-    reponse_correcte TEXT,
-    metadata_exo LONGTEXT CHECK (JSON_VALID(metadata_exo)),
-    ordre_affichage INT DEFAULT 0,
-    CONSTRAINT fk_exercice_feuille FOREIGN KEY (feuille_id) 
-        REFERENCES feuilles_exercice(id) ON DELETE CASCADE,
-    INDEX idx_feuille (feuille_id)
-) ENGINE=InnoDB;
+    sheet_id VARCHAR(36) NOT NULL,
+    exercise_type ENUM(
+        'MCQ',
+        'CHECKBOX',
+        'OPEN',
+        'FILL_IN',
+        'TRUE_FALSE',
+        'CROSS_TABLE',
+        'DIAGRAM'
+    ) NOT NULL,
+    question_text TEXT NOT NULL,
+    correct_answer TEXT,
+    exercise_metadata JSON, -- difficulty, number of questions, etc.
+    source_reference JSON, -- reference to document/section
+    version INT DEFAULT 1,
+    is_active BOOLEAN DEFAULT TRUE,
+    display_order INT DEFAULT 0,
+    CONSTRAINT fk_exercise_sheet
+        FOREIGN KEY (sheet_id) REFERENCES exercise_sheets(id)
+        ON DELETE CASCADE
+);
 
--- -----------------------------------------------------------------------------
--- 8. Table STATISTIQUES_UTILISATION
--- -----------------------------------------------------------------------------
+CREATE INDEX idx_exercises_sheet ON exercises(sheet_id);
 
-CREATE TABLE IF NOT EXISTS statistiques_utilisation (
+-- ==========================
+-- USAGE STATISTICS
+-- ==========================
+CREATE TABLE usage_statistics (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_uid VARCHAR(36) NOT NULL,
-    action ENUM('GENERATION_EXO', 'TRADUCTION_PDF', 'EXPORT_PDF') NOT NULL,
-    consommation_credits INT DEFAULT 1,
-    date_action TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_stats_user FOREIGN KEY (user_uid) 
-        REFERENCES utilisateurs(uid) ON DELETE CASCADE
-) ENGINE=InnoDB;
+    user_id VARCHAR(36) NOT NULL,
+    action ENUM('EXERCISE_GENERATION', 'PDF_TRANSLATION', 'PDF_EXPORT') NOT NULL,
+    credits_used INT DEFAULT 1,
+    action_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_statistics_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+);
 
--- =============================================================================
--- INSERTION DES DONNÉES DE TEST (SEED DATA)
--- =============================================================================
-
--- 1. Utilisateurs (12 entrées)
-
-INSERT INTO utilisateurs (uid, email, password_hash, type_utilisateur) VALUES
-('u1', 'jean.dupont@email.com', 'hash1', 'ENSEIGNANT'),
-('u2', 'marie.curie@email.com', 'hash2', 'ENSEIGNANT'),
-('u3', 'thomas.pesquet@email.com', 'hash3', 'ENSEIGNANT'),
-('u4', 'alice.vial@email.com', 'hash4', 'ENSEIGNANT'),
-('u5', 'bob.leponge@email.com', 'hash5', 'ETUDIANT'),
-('u6', 'clara.noel@email.com', 'hash6', 'ENSEIGNANT'),
-('u7', 'david.good@email.com', 'hash7', 'ENSEIGNANT'),
-('u8', 'emma.watson@email.com', 'hash8', 'ENSEIGNANT'),
-('u9', 'fabrice.luchini@email.com', 'hash9', 'ENSEIGNANT'),
-('u10', 'gaelle.pietri@email.com', 'hash10', 'ENSEIGNANT'),
-('u11', 'hugo.boss@email.com', 'hash11', 'ENSEIGNANT'),
-('u12', 'igor.bogda@email.com', 'hash12', 'ETUDIANT');
-
--- 2. Enseignants (10 entrées)
-
-INSERT INTO enseignants (user_uid, credits, plan, institution) VALUES
-('u1', 50, 'PRO', 'Lycée Condorcet'),
-('u2', 120, 'PRO', 'Université Paris-Saclay'),
-('u3', 30, 'FREE', 'ESA Academy'),
-('u4', 10, 'FREE', 'Collège Rimbaud'),
-('u6', 200, 'PRO', 'Sorbonne'),
-('u7', 0, 'FREE', 'Lycée Pasteur'),
-('u8', 45, 'FREE', 'Oxford Edu'),
-('u9', 150, 'PRO', 'Académie Française'),
-('u10', 80, 'PRO', 'ENS Lyon'),
-('u11', 12, 'FREE', 'Mode School');
-
--- 3. Documents Source (10 entrées)
-
-INSERT INTO documents_source (id, nom_fichier, url_stockage, texte_extrait, langue_origine) VALUES
-('doc1', 'cours_physique_atome.pdf', 's3://bucket/doc1.pdf', 'Contenu sur les atomes...', 'fr'),
-('doc2', 'history_of_art.pdf', 's3://bucket/doc2.pdf', 'Art history details...', 'en'),
-('doc3', 'biologie_cellulaire.pdf', 's3://bucket/doc3.pdf', 'Les cellules eucaryotes...', 'fr'),
-('doc4', 'maths_fractions.pdf', 's3://bucket/doc4.pdf', 'Apprendre les fractions...', 'fr'),
-('doc5', 'spanish_grammar.pdf', 's3://bucket/doc5.pdf', 'Gramatica española...', 'es'),
-('doc6', 'informatique_reseau.pdf', 's3://bucket/doc6.pdf', 'Modèle OSI et protocoles...', 'fr'),
-('doc7', 'geographie_climats.pdf', 's3://bucket/doc7.pdf', 'Zones climatiques mondiales...', 'fr'),
-('doc8', 'chimie_molecules.pdf', 's3://bucket/doc8.pdf', 'Liaisons covalentes...', 'fr'),
-('doc9', 'philosophie_kant.pdf', 's3://bucket/doc9.pdf', 'Critique de la raison pure...', 'fr'),
-('doc10', 'economie_marche.pdf', 's3://bucket/doc10.pdf', 'Offre et demande...', 'fr');
-
--- 4. Traductions (10 entrées)
-
-INSERT INTO traductions (id, document_id, langue_cible, url_pdf_traduit) VALUES
-('t1', 'doc1', 'en', 's3://bucket/t1_en.pdf'),
-('t2', 'doc1', 'es', 's3://bucket/t2_es.pdf'),
-('t3', 'doc2', 'fr', 's3://bucket/t3_fr.pdf'),
-('t4', 'doc3', 'en', 's3://bucket/t4_en.pdf'),
-('t5', 'doc6', 'en', 's3://bucket/t5_en.pdf'),
-('t6', 'doc7', 'de', 's3://bucket/t6_de.pdf'),
-('t7', 'doc8', 'it', 's3://bucket/t7_it.pdf'),
-('t8', 'doc10', 'en', 's3://bucket/t8_en.pdf'),
-('t9', 'doc4', 'ar', 's3://bucket/t9_ar.pdf'),
-('t10', 'doc5', 'fr', 's3://bucket/t10_fr.pdf');
-
--- 5. Projets (10 entrées)
-
-INSERT INTO projets (id, enseignant_uid, document_id, titre, config) VALUES
-('p1', 'u1', 'doc1', 'Examen Physique Atome', '{"diff": "intermediaire", "count": 5}'),
-('p2', 'u2', 'doc3', 'Quizz Biologie', '{"diff": "facile", "count": 10}'),
-('p3', 'u3', 'doc6', 'DS Réseaux', '{"diff": "expert", "count": 3}'),
-('p4', 'u1', 'doc4', 'Soutien Maths', '{"diff": "facile", "count": 8}'),
-('p5', 'u6', 'doc10', 'Analyse Éco', '{"diff": "intermediaire", "count": 12}'),
-('p6', 'u8', 'doc2', 'Art History Test', '{"diff": "expert", "count": 5}'),
-('p7', 'u10', 'doc8', 'TP Chimie', '{"diff": "intermediaire", "count": 4}'),
-('p8', 'u9', 'doc9', 'Dissertation Philo', '{"diff": "expert", "count": 1}'),
-('p9', 'u4', 'doc7', 'Géo Monde', '{"diff": "facile", "count": 6}'),
-('p10', 'u7', 'doc4', 'Révision Fractions', '{"diff": "facile", "count": 10}');
-
--- 6. Feuilles d'Exercice (10 entrées)
-
-INSERT INTO feuilles_exercice (id, projet_id, url_pdf_sujet, statut) VALUES
-('f1', 'p1', 's3://pdf/sujet1.pdf', 'PUBLIE'),
-('f2', 'p2', 's3://pdf/sujet2.pdf', 'GENERE'),
-('f3', 'p3', 's3://pdf/sujet3.pdf', 'BROUILLON'),
-('f4', 'p4', 's3://pdf/sujet4.pdf', 'PUBLIE'),
-('f5', 'p5', 's3://pdf/sujet5.pdf', 'GENERE'),
-('f6', 'p6', 's3://pdf/sujet6.pdf', 'PUBLIE'),
-('f7', 'p7', 's3://pdf/sujet7.pdf', 'BROUILLON'),
-('f8', 'p8', 's3://pdf/sujet8.pdf', 'GENERE'),
-('f9', 'p9', 's3://pdf/sujet9.pdf', 'PUBLIE'),
-('f10', 'p10', 's3://pdf/sujet10.pdf', 'GENERE');
-
--- 7. Exercices (10 entrées variées)
-
-INSERT INTO exercices (id, feuille_id, type_exercice, enonce, reponse_correcte, metadata_exo) VALUES
-('e1', 'f1', 'QCM', 'Quelle est la charge du proton ?', 'Positive', '{"options": ["Nulle", "Négative", "Positive"]}'),
-('e2', 'f1', 'VRAI_FAUX', 'L''atome est majoritairement composé de vide.', 'Vrai', '{"label": "Confirmer l''énoncé"}'),
-('e3', 'f2', 'TROUS', 'La cellule est l''unité [structurelle] du vivant.', 'structurelle', '{}'),
-('e4', 'f4', 'OUVERTE', 'Expliquez la règle de trois.', NULL, '{}'),
-('e5', 'f5', 'TABLEAU_CROISE', 'Associez les pays à leurs monnaies.', 'Europe-Euro, USA-Dollar', '{"rows": ["France", "USA"], "cols": ["Euro", "Dollar"]}'),
-('e6', 'f6', 'SCHEMA', 'Légendez le tableau ci-dessous.', 'Point A: Renaissance', '{"hotspots": [1, 2, 3]}'),
-('e7', 'f2', 'CASE_A_COCHER', 'Cochez les organites cellulaires.', 'Noyau, Mitochondrie', '{"options": ["Noyau", "Mitochondrie", "Pneu"]}'),
-('e8', 'f9', 'QCM', 'Quel est le plus grand océan ?', 'Pacifique', '{"options": ["Atlantique", "Pacifique", "Indien"]}'),
-('e9', 'f10', 'VRAI_FAUX', '1/2 est supérieur à 1/4.', 'Vrai', '{}'),
-('e10', 'f1', 'OUVERTE', 'Décrivez l''expérience de Rutherford.', NULL, '{}');
-
--- 8. Statistiques (10 entrées)
-
-INSERT INTO statistiques_utilisation (user_uid, action, consommation_credits) VALUES
-('u1', 'GENERATION_EXO', 5),
-('u1', 'TRADUCTION_PDF', 2),
-('u2', 'GENERATION_EXO', 10),
-('u3', 'EXPORT_PDF', 1),
-('u6', 'GENERATION_EXO', 12),
-('u8', 'TRADUCTION_PDF', 2),
-('u10', 'GENERATION_EXO', 4),
-('u9', 'EXPORT_PDF', 1),
-('u4', 'GENERATION_EXO', 8),
-('u1', 'EXPORT_PDF', 1);
+CREATE INDEX idx_statistics_date ON usage_statistics(action_date);
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+
+-- =========================================
+-- ROLES
+-- =========================================
+INSERT INTO roles (id, role_name, description)
+VALUES
+  (UUID(), 'ADMIN', 'Administrator role'),
+  (UUID(), 'USER', 'Regular user role'),
+  (UUID(), 'EDITOR', 'Can edit documents'),
+  (UUID(), 'TEACHER', 'Can create projects'),
+  (UUID(), 'GUEST', 'Read-only access');
+
+-- =========================================
+-- USERS
+-- =========================================
+INSERT INTO users (id, email, password_hash, role_id, created_at, profile)
+VALUES
+  (UUID(), 'alice@test.com', 'hashedpassword1', (SELECT id FROM roles WHERE role_name='USER'), NOW(), '{"first_name":"Alice","last_name":"Smith"}'),
+  (UUID(), 'bob@test.com', 'hashedpassword2', (SELECT id FROM roles WHERE role_name='ADMIN'), NOW(), '{"first_name":"Bob","last_name":"Admin"}'),
+  (UUID(), 'charlie@test.com', 'hashedpassword3', (SELECT id FROM roles WHERE role_name='EDITOR'), NOW(), '{"first_name":"Charlie","last_name":"Brown"}'),
+  (UUID(), 'david@test.com', 'hashedpassword4', (SELECT id FROM roles WHERE role_name='TEACHER'), NOW(), '{"first_name":"David","last_name":"Green"}'),
+  (UUID(), 'eve@test.com', 'hashedpassword5', (SELECT id FROM roles WHERE role_name='GUEST'), NOW(), '{"first_name":"Eve","last_name":"White"}');
+
+-- =========================================
+-- SOURCE DOCUMENTS
+-- =========================================
+INSERT INTO source_documents (id, user_id, filename, file_type, storage_url, extracted_text, original_language, uploaded_at)
+VALUES
+  (UUID(), (SELECT id FROM users WHERE email='alice@test.com'), 'doc1.pdf', 'pdf', '/files/doc1.pdf', 'Text from doc1', 'en', NOW()),
+  (UUID(), (SELECT id FROM users WHERE email='bob@test.com'), 'doc2.pdf', 'pdf', '/files/doc2.pdf', 'Text from doc2', 'fr', NOW()),
+  (UUID(), (SELECT id FROM users WHERE email='charlie@test.com'), 'doc3.txt', 'txt', '/files/doc3.txt', 'Text from doc3', 'en', NOW()),
+  (UUID(), (SELECT id FROM users WHERE email='david@test.com'), 'doc4.pdf', 'pdf', '/files/doc4.pdf', 'Text from doc4', 'en', NOW()),
+  (UUID(), (SELECT id FROM users WHERE email='eve@test.com'), 'doc5.docx', 'docx', '/files/doc5.docx', 'Text from doc5', 'fr', NOW());
+
+-- =========================================
+-- PROJECTS
+-- =========================================
+INSERT INTO projects (id, user_id, document_id, title, config, created_at)
+VALUES
+  (UUID(), (SELECT id FROM users WHERE email='alice@test.com'), (SELECT id FROM source_documents WHERE filename='doc1.pdf'), 'Project A', '{"total_exercises":5,"types":{"QCM":2,"TROUS":3}}', NOW()),
+  (UUID(), (SELECT id FROM users WHERE email='bob@test.com'), (SELECT id FROM source_documents WHERE filename='doc2.pdf'), 'Project B', '{"total_exercises":4,"types":{"QCM":1,"TROUS":3}}', NOW()),
+  (UUID(), (SELECT id FROM users WHERE email='charlie@test.com'), (SELECT id FROM source_documents WHERE filename='doc3.txt'), 'Project C', '{"total_exercises":6,"types":{"QCM":3,"OUVERTE":3}}', NOW()),
+  (UUID(), (SELECT id FROM users WHERE email='david@test.com'), (SELECT id FROM source_documents WHERE filename='doc4.pdf'), 'Project D', '{"total_exercises":5,"types":{"QCM":2,"VRAI_FAUX":3}}', NOW()),
+  (UUID(), (SELECT id FROM users WHERE email='eve@test.com'), (SELECT id FROM source_documents WHERE filename='doc5.docx'), 'Project E', '{"total_exercises":3,"types":{"TROUS":3}}', NOW());
+
+-- =========================================
+-- EXERCISE SHEETS
+-- =========================================
+INSERT INTO exercise_sheets (id, project_id, pdf_url_questions, pdf_url_answers, qr_code_link, status, generated_at)
+VALUES
+  (UUID(), (SELECT id FROM projects WHERE title='Project A'), '/files/projectA_questions.pdf', '/files/projectA_answers.pdf', 'http://qrcodeA', 'DRAFT', NOW()),
+  (UUID(), (SELECT id FROM projects WHERE title='Project B'), '/files/projectB_questions.pdf', '/files/projectB_answers.pdf', 'http://qrcodeB', 'DRAFT', NOW()),
+  (UUID(), (SELECT id FROM projects WHERE title='Project C'), '/files/projectC_questions.pdf', '/files/projectC_answers.pdf', 'http://qrcodeC', 'DRAFT', NOW()),
+  (UUID(), (SELECT id FROM projects WHERE title='Project D'), '/files/projectD_questions.pdf', '/files/projectD_answers.pdf', 'http://qrcodeD', 'DRAFT', NOW()),
+  (UUID(), (SELECT id FROM projects WHERE title='Project E'), '/files/projectE_questions.pdf', '/files/projectE_answers.pdf', 'http://qrcodeE', 'DRAFT', NOW());
+
+-- =========================================
+-- EXERCISES
+-- =========================================
+INSERT INTO exercises (id, sheet_id, exercise_type, question_text, correct_answer, exercise_metadata, display_order, is_active)
+VALUES
+  (UUID(), (SELECT id FROM exercise_sheets WHERE project_id=(SELECT id FROM projects WHERE title='Project A')), 'MCQ', 'What is 2+2?', '4', '{"difficulty":"easy"}', 1, true),
+  (UUID(), (SELECT id FROM exercise_sheets WHERE project_id=(SELECT id FROM projects WHERE title='Project A')), 'FILL_IN', 'The capital of France is ___', 'Paris', '{"difficulty":"medium"}', 2, true),
+  (UUID(), (SELECT id FROM exercise_sheets WHERE project_id=(SELECT id FROM projects WHERE title='Project B')), 'MCQ', 'Choose the correct color', 'Red', '{"difficulty":"easy"}', 1, true),
+  (UUID(), (SELECT id FROM exercise_sheets WHERE project_id=(SELECT id FROM projects WHERE title='Project C')), 'OPEN', 'Explain gravity', 'Gravity is ...', '{"difficulty":"hard"}', 1, true),
+  (UUID(), (SELECT id FROM exercise_sheets WHERE project_id=(SELECT id FROM projects WHERE title='Project D')), 'TRUE_FALSE', 'The sun rises in the west', 'False', '{"difficulty":"easy"}', 1, true);
+
+-- =========================================
+-- AI GENERATIONS
+-- =========================================
+INSERT INTO ai_generations (id, project_id, model_name, prompt, raw_response, tokens_used, status, generated_at)
+VALUES
+  (UUID(), (SELECT id FROM projects WHERE title='Project A'), 'GPT-Test', 'Generate a QCM exercise', 'QCM generated', 10, 'SUCCESS', NOW()),
+  (UUID(), (SELECT id FROM projects WHERE title='Project B'), 'GPT-Test', 'Generate a TROUS exercise', 'TROUS generated', 15, 'SUCCESS', NOW()),
+  (UUID(), (SELECT id FROM projects WHERE title='Project C'), 'GPT-Test', 'Generate a OUVERTE exercise', 'OUVERTE generated', 12, 'SUCCESS', NOW()),
+  (UUID(), (SELECT id FROM projects WHERE title='Project D'), 'GPT-Test', 'Generate a VRAI_FAUX exercise', 'VRAI_FAUX generated', 8, 'SUCCESS', NOW()),
+  (UUID(), (SELECT id FROM projects WHERE title='Project E'), 'GPT-Test', 'Generate a TROUS exercise', 'TROUS generated', 9, 'SUCCESS', NOW());
+
+-- =========================================
+-- USAGE STATISTICS
+-- =========================================
+INSERT INTO usage_statistics (id, user_id, action, credits_used, action_date)
+VALUES
+  (1, (SELECT id FROM users WHERE email='alice@test.com'), 'EXERCISE_GENERATION', 1, NOW()),
+  (2, (SELECT id FROM users WHERE email='bob@test.com'), 'PDF_TRANSLATION', 2, NOW()),
+  (3, (SELECT id FROM users WHERE email='charlie@test.com'), 'PDF_EXPORT', 1, NOW()),
+  (4, (SELECT id FROM users WHERE email='david@test.com'), 'EXERCISE_GENERATION', 1, NOW()),
+  (5, (SELECT id FROM users WHERE email='eve@test.com'), 'PDF_TRANSLATION', 1, NOW());
+
+-- =========================================
+-- TRANSLATIONS
+-- =========================================
+INSERT INTO translations (id, document_id, target_language, translated_pdf_url, translated_at)
+VALUES
+  (UUID(), (SELECT id FROM source_documents WHERE filename='doc1.pdf'), 'fr', '/files/doc1_fr.pdf', NOW()),
+  (UUID(), (SELECT id FROM source_documents WHERE filename='doc2.pdf'), 'en', '/files/doc2_en.pdf', NOW()),
+  (UUID(), (SELECT id FROM source_documents WHERE filename='doc3.txt'), 'fr', '/files/doc3_fr.pdf', NOW()),
+  (UUID(), (SELECT id FROM source_documents WHERE filename='doc4.pdf'), 'en', '/files/doc4_en.pdf', NOW()),
+  (UUID(), (SELECT id FROM source_documents WHERE filename='doc5.docx'), 'fr', '/files/doc5_fr.pdf', NOW());
+
+ALTER TABLE `source_documents` ADD COLUMN `status` VARCHAR(50) DEFAULT 'PENDING'
+
+ALTER TABLE `source_documents` 
+	CHANGE `file_type` `file_type` varchar(255) NOT NULL ;
+DESCRIBE source_documents;
+
+ALTER TABLE projects
+MODIFY COLUMN config JSON NOT NULL,
+ADD CONSTRAINT chk_projects_config_json
+CHECK (JSON_VALID(config));
+DESCRIBE projects;
+
+ALTER TABLE ai_generations MODIFY COLUMN status ENUM('SUCCESS','FAILED','ERROR') NOT NULL;
+ALTER TABLE exercise_sheets MODIFY COLUMN status ENUM('SUCCESS','FAILED','ERROR') NOT NULL;
+DESCRIBE ai_generations;
+DESCRIBE exercise_sheets;
+ALTER TABLE exercises MODIFY COLUMN exercise_type VARCHAR(255);
+
