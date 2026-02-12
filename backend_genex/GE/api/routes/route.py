@@ -28,6 +28,7 @@ router = APIRouter()
 # =========================================
 @router.post("/add_users/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
+    print(f"Creating user with email: {user.email} and role: {user.role_name}")
     existing = db.query(User).filter(User.email == user.email).first()
     if existing:
         raise HTTPException(

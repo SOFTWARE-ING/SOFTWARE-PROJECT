@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User, Check, AlertCircle } from 'lucide-react';
+import { getService } from '../../api_service/getService';
+
+// const DEFAULT_ROLE_ID = 'teacher'; // ← remplace par l'id réel du rôle dans ta DB
 
 export default function RegisterScreen() {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -16,6 +21,7 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [touched, setTouched] = useState({});
+  const [submitError, setSubmitError] = useState('');
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -116,13 +122,24 @@ export default function RegisterScreen() {
     }
 
     setIsLoading(true);
+    setSubmitError('');
     
     try {
-      console.log('Registration attempt:', formData);
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      console.log('Registration successful');
+      // Build payload matching UserCreate schema
+      const payload = {
+        email:    formData.email,
+        password: formData.password,
+        role_name:  "TEACHER", // Default role name
+        profile: {
+          name: formData.name.trim(),
+        },
+      };
+
+      await getService.postData('add_users/', payload);
+      navigate('/login');
     } catch (error) {
       console.error('Registration failed:', error);
+      setSubmitError(error.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -142,6 +159,16 @@ export default function RegisterScreen() {
             </Link>
           </p>
         </div>
+
+        {/* Submit error banner */}
+        {submitError && (
+          <div className="rounded-md bg-red-50 dark:bg-red-900/30 p-4">
+            <div className="flex items-center">
+              <AlertCircle className="h-5 w-5 text-red-400 dark:text-red-300" />
+              <p className="ml-3 text-sm text-red-800 dark:text-red-200">{submitError}</p>
+            </div>
+          </div>
+        )}
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-5">

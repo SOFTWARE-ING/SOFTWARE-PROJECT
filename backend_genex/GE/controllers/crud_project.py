@@ -32,13 +32,23 @@ def get_all_users(db: Session) -> List[User]:
 
 
 def create_user(db: Session, user_schema):
+
+    # 🔍 Chercher le rôle par son nom
+    role = db.query(Role).filter(
+        Role.role_name == user_schema.role_name
+    ).first()
+
+    if not role:
+        raise ValueError("Invalid role name")
+
     user = User(
         id=str(uuid.uuid4()),
         email=user_schema.email,
         password=hash_password(user_schema.password),
-        role_id=user_schema.role_id,
-        profile=user_schema.profile
+        role_id=role.id,  # 🔥 On met le vrai UUID ici
+        profile=user_schema.profile or {"credits": 5}
     )
+
     db.add(user)
     db.commit()
     db.refresh(user)

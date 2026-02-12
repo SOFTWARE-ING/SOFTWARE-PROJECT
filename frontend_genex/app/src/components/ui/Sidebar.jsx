@@ -1,3 +1,96 @@
+// import React from "react"
+// import {
+//   LayoutDashboard,
+//   Cpu,
+//   Languages,
+//   FolderOpen,
+//   Users,
+//   Settings,
+//   Zap,
+//   Plus,
+//   Briefcase,
+// } from "lucide-react"
+// import { NavLink } from "react-router-dom"
+
+
+// export default function Sidebar() {
+
+//   const menu = [
+//     { id: "dashboard", path: "/", icon: LayoutDashboard, label: "Vue d'ensemble" },
+//     { id: "generate", path: "/generate", icon: Cpu, label: "Téléversement IA/OCR" },
+//     { id: "translate", path: "/translate", icon: Languages, label: "Traducteur PDF" },
+//     { id: "library", path: "/library", icon: FolderOpen, label: "Mes Documents" },
+//     { id: "new-project", path: "/new-project", icon: Plus, label: "Nouveau Projet" },
+//     { id: "projects", path: "/projects", icon: Briefcase, label: "Projets" },
+//     { id: "settings", path: "/settings", icon: Settings, label: "Paramètres" },
+//   ]
+
+
+//   return (
+//     <div className="flex h-full w-72 flex-col border-r border-slate-300 bg-slate-100/50 dark:border-slate-800 dark:bg-slate-900 p-2 transition-all ease-in-out duration-300 ">
+
+//       {/* Logo / Header */}
+//       <div className="mb-4 flex items-center justify-center rounded-xs p-1 bg-linear-to-r from-indigo-500 via-purple-500 to-pink-500 text-white shadow-lg animate-pulse hover:animate-none transition-all duration-300 group cursor-pointer">
+
+//         {/* Icon */}
+//         <Zap className="mr-2 h-6 w-6 text-white group-hover:scale-110 transition-transform duration-300" />
+
+//         {/* Texte */}
+//         <div className="flex flex-col items-start">
+//           {/* <span className="text-sm font-semibold uppercase tracking-wide">Upgrade!</span> */}
+//           <span className="text-sm font-semibold uppercase tracking-wide upgrade-shine">Upgrade!</span>
+
+//           <span className="text-xs font-medium opacity-90">Passez à la version Pro pour plus de fonctionnalités</span>
+//         </div>
+
+//       </div>
+
+
+//       {/* Menu */}
+//       <nav className="flex flex-1 flex-col gap-2">
+//         {menu.map((item) => {
+//           const Icon = item.icon
+
+//           return (
+//             <NavLink
+//               key={item.id}
+//               to={item.path}
+//               className={({ isActive }) => `
+//           group flex items-center gap-3 rounded-xs shadow-xs
+//           px-4 py-3 text-lg font-megium transition-colors duration-200
+//           ${isActive
+//                   ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-600/20 dark:text-indigo-400"
+//                   : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+//                 }
+//         `}
+//             >
+//               {({ isActive }) => (
+//                 <>
+//                   <Icon
+//                     size={20}
+//                     className={`
+//             ${isActive
+//                     ? "text-indigo-600 dark:text-indigo-400"
+//                     : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200"
+//                   }
+//           `}
+//                   />
+//                   {item.label}
+//                 </>
+//               )}
+//             </NavLink>
+//           )
+//         })}
+//       </nav>
+
+
+//       {/* Footer */}
+//       <div className="mt-auto pt-4 border-t border-slate-200 dark:border-slate-800">
+//         <p className="text-xs text-slate-500 dark:text-slate-400 text-center">v1.0.0</p>
+//       </div>
+//     </div>
+//   )
+// }
 import React from "react"
 import {
   LayoutDashboard,
@@ -9,85 +102,116 @@ import {
   Zap,
   Plus,
   Briefcase,
+  Lock,
 } from "lucide-react"
 import { NavLink } from "react-router-dom"
+import { useAuth } from "../Context_api.jsx"
 
 
 export default function Sidebar() {
+  const { auth } = useAuth()
+  const isAuthenticated = !!auth?.access_token
 
-  const menu = [
-    { id: "dashboard", path: "/", icon: LayoutDashboard, label: "Vue d'ensemble" },
-    { id: "generate", path: "/generate", icon: Cpu, label: "Téléversement IA/OCR" },
-    { id: "translate", path: "/translate", icon: Languages, label: "Traducteur PDF" },
-    { id: "library", path: "/library", icon: FolderOpen, label: "Mes Documents" },
-    { id: "new-project", path: "/new-project", icon: Plus, label: "Nouveau Projet" },
-    { id: "projects", path: "/projects", icon: Briefcase, label: "Projets" },
-    { id: "settings", path: "/settings", icon: Settings, label: "Paramètres" },
+  const publicMenu = [
+    { id: "dashboard",  path: "/",         icon: LayoutDashboard, label: "Vue d'ensemble" },
+    { id: "translate",  path: "/translate", icon: Languages,       label: "Traducteur PDF" },
   ]
 
+  const privateMenu = [
+    { id: "generate",    path: "/generate",    icon: Cpu,       label: "Téléversement IA/OCR" },
+    { id: "library",     path: "/library",     icon: FolderOpen, label: "Mes Documents" },
+    { id: "new-project", path: "/new-project", icon: Plus,       label: "Nouveau Projet" },
+    { id: "projects",    path: "/projects",    icon: Briefcase,  label: "Projets" },
+    { id: "settings",    path: "/settings",    icon: Settings,   label: "Paramètres" },
+  ]
+
+  const renderLink = (item) => {
+    const Icon = item.icon
+    return (
+      <NavLink
+        key={item.id}
+        to={item.path}
+        className={({ isActive }) => `
+          group flex items-center gap-3 rounded-xs shadow-xs
+          px-4 py-3 text-lg font-medium transition-colors duration-200
+          ${isActive
+            ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-600/20 dark:text-indigo-400"
+            : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+          }
+        `}
+      >
+        {({ isActive }) => (
+          <>
+            <Icon
+              size={20}
+              className={
+                isActive
+                  ? "text-indigo-600 dark:text-indigo-400"
+                  : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200"
+              }
+            />
+            {item.label}
+          </>
+        )}
+      </NavLink>
+    )
+  }
 
   return (
-    <div className="flex h-full w-72 flex-col border-r border-slate-300 bg-slate-100/50 dark:border-slate-800 dark:bg-slate-900 p-2 transition-all ease-in-out duration-300 ">
+    <div className="flex h-full w-72 flex-col border-r border-slate-300 bg-slate-100/50 dark:border-slate-800 dark:bg-slate-900 p-2 transition-all ease-in-out duration-300">
 
-      {/* Logo / Header */}
+      {/* Upgrade Banner */}
       <div className="mb-4 flex items-center justify-center rounded-xs p-1 bg-linear-to-r from-indigo-500 via-purple-500 to-pink-500 text-white shadow-lg animate-pulse hover:animate-none transition-all duration-300 group cursor-pointer">
-
-        {/* Icon */}
         <Zap className="mr-2 h-6 w-6 text-white group-hover:scale-110 transition-transform duration-300" />
-
-        {/* Texte */}
         <div className="flex flex-col items-start">
-          {/* <span className="text-sm font-semibold uppercase tracking-wide">Upgrade!</span> */}
           <span className="text-sm font-semibold uppercase tracking-wide upgrade-shine">Upgrade!</span>
-
           <span className="text-xs font-medium opacity-90">Passez à la version Pro pour plus de fonctionnalités</span>
         </div>
-
       </div>
-
 
       {/* Menu */}
       <nav className="flex flex-1 flex-col gap-2">
-        {menu.map((item) => {
-          const Icon = item.icon
 
-          return (
+        {/* Always visible */}
+        {publicMenu.map(renderLink)}
+
+        {/* Divider */}
+        <div className="my-1 border-t border-slate-200 dark:border-slate-800" />
+
+        {/* Auth-gated items */}
+        {isAuthenticated ? (
+          privateMenu.map(renderLink)
+        ) : (
+          <div className="flex flex-col gap-1">
+            {privateMenu.map((item) => {
+              const Icon = item.icon
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 rounded-xs px-4 py-3 text-lg font-medium text-slate-400 dark:text-slate-600 cursor-not-allowed select-none opacity-60"
+                  title="Connexion requise"
+                >
+                  <Icon size={20} className="text-slate-300 dark:text-slate-600" />
+                  <span className="flex-1">{item.label}</span>
+                  <Lock size={13} className="text-slate-300 dark:text-slate-600" />
+                </div>
+              )
+            })}
             <NavLink
-              key={item.id}
-              to={item.path}
-              className={({ isActive }) => `
-          group flex items-center gap-3 rounded-xs shadow-xs
-          px-4 py-3 text-lg font-megium transition-colors duration-200
-          ${isActive
-                  ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-600/20 dark:text-indigo-400"
-                  : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
-                }
-        `}
+              to="/login"
+              className="mt-2 flex items-center justify-center gap-2 rounded-xs bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors duration-200"
             >
-              {({ isActive }) => (
-                <>
-                  <Icon
-                    size={20}
-                    className={`
-            ${isActive
-                    ? "text-indigo-600 dark:text-indigo-400"
-                    : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200"
-                  }
-          `}
-                  />
-                  {item.label}
-                </>
-              )}
+              Se connecter pour accéder
             </NavLink>
-          )
-        })}
+          </div>
+        )}
       </nav>
-
 
       {/* Footer */}
       <div className="mt-auto pt-4 border-t border-slate-200 dark:border-slate-800">
         <p className="text-xs text-slate-500 dark:text-slate-400 text-center">v1.0.0</p>
       </div>
+
     </div>
   )
 }

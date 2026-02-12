@@ -92,8 +92,9 @@ class UserBase(BaseModel):
 class UserCreate(BaseModel):
     email: str
     password: str
-    role_id: str
+    role_name: str   # 🔥
     profile: Optional[Dict] = None
+
 
 class UserRead(UserBase):
     role: Optional[RoleRead] = None
