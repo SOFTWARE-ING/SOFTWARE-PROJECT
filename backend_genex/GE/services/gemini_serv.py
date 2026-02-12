@@ -53,7 +53,7 @@ import time
 
 def ask_gemini(
     promt: str,
-    model: str = "gemini-3-flash-preview",
+    model: str = "gemini-flash-lite-latest",
     temperature: float = 0.7,
     max_output_tokens: int = 8192,
     top_p: float = 0.95,
