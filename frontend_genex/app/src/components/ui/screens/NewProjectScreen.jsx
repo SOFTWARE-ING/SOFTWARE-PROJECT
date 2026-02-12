@@ -261,36 +261,6 @@ export default function NewProjectScreen() {
     })
   }
 
-  // const handleCreateProject = async () => {
-  //   // Validation
-  //   if (!projectData.title.trim()) {
-  //     alert('Le titre est obligatoire')
-  //     return
-  //   }
-
-  //   if (!projectData.document_id) {
-  //     alert('Veuillez sélectionner un document')
-  //     return
-  //   }
-
-  //   if (projectData.config.exercises.types.length === 0) {
-  //     alert('Veuillez ajouter au moins un type d\'exercice')
-  //     return
-  //   }
-
-
-
-
-  //   setIsCreating(true)
-  //   console.log("Payload to send:", JSON.stringify(projectData, null, 2))
-
-  //   // Simulate project creation
-  //   setTimeout(() => {
-  //     setIsCreating(false)
-  //     alert('Document généré avec succès ! Payload logged to console.')
-  //   }, 2000)
-  // }
-
   const nextStep = () => {
     if (currentStep < 4) setCurrentStep(currentStep + 1)
   }
@@ -340,7 +310,6 @@ export default function NewProjectScreen() {
   };
 
   const handleCreateProject = async () => {
-  // Validation
   if (!projectData.title.trim()) {
     alert('Le titre est obligatoire');
     return;
@@ -357,32 +326,50 @@ export default function NewProjectScreen() {
   }
 
   setIsCreating(true);
-  
+
   try {
     console.log("📤 Envoi du payload:", projectData);
-    
-    // Appeler l'API avec les données brutes (pas JSON.stringify)
+
     const response = await createProject(projectData);
-    
-    console.log("✅ Réponse de l'API:", response);
-    alert('Document généré avec succès !');
-    
-  } catch (error) {
-    console.error("❌ Erreur lors de la création:", error);
-    
-    // Messages d'erreur spécifiques selon le code
-    if (error.message.includes("401")) {
-      alert('Erreur 401: Non autorisé. Vérifiez votre authentification.');
-    } else if (error.message.includes("Network")) {
-      alert('Erreur réseau. Vérifiez la connexion et le serveur FastAPI.');
-    } else {
-      alert(`Erreur: ${error.message}`);
+
+    console.log("📥 Réponse création:", response);
+
+    const taskId = response?.task_id;
+
+    if (!taskId) {
+      throw new Error("Task ID non reçu depuis le serveur.");
     }
-    
+
+    let status = "processing";
+    let attempts = 0;
+    const maxAttempts = 40; // ~2 minutes (40 × 3s)
+
+    while (status === "processing" && attempts < maxAttempts) {
+      await new Promise(res => setTimeout(res, 3000));
+      attempts++;
+
+      const statusResponse = await routingService.get_project_status(taskId);
+      status = statusResponse?.status;
+
+      console.log(`⏳ Statut actuel: ${status}`);
+    }
+
+    if (status === "completed") {
+      alert("Document généré avec succès !");
+    } else if (status === "error") {
+      alert("Une erreur est survenue pendant la génération.");
+    } else {
+      alert("Temps dépassé. Vérifiez le statut plus tard.");
+    }
+
+  } catch (error) {
+    console.error("❌ Erreur lors de la génération:", error);
+    alert("Erreur lors de la génération du document.");
   } finally {
     setIsCreating(false);
   }
 };
+
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-8">
@@ -510,34 +497,6 @@ export default function NewProjectScreen() {
                 <option value="es">Español</option>
               </select>
             </div>
-
-            {/* Subject Area */}
-            {/* <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Domaine/Matière
-              </label>
-              <input
-                type="text"
-                value={projectData.config.metadata.subject_area}
-                onChange={(e) => updateState('config.metadata.subject_area', e.target.value)}
-                placeholder="Mathématiques, Histoire, etc."
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div> */}
-
-            {/* Educational Level */}
-            {/* <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Niveau Éducatif
-              </label>
-              <input
-                type="text"
-                value={projectData.config.metadata.educational_level}
-                onChange={(e) => updateState('config.metadata.educational_level', e.target.value)}
-                placeholder="Lycée, Université, etc."
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div> */}
           </div>
         </div>
       )}
@@ -784,21 +743,11 @@ export default function NewProjectScreen() {
                   <span className="text-sm text-slate-700 dark:text-slate-300">Générer les réponses</span>
                 </label>
                 <label className="flex items-center">
-                  {/* <input
-                    type="checkbox"
-                    // checked={projectData.config.correction.include_explanations}
-                    onChange={(e) => updateState('config.correction.include_explanations', e.target.checked)}
-                    className="mr-3 h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
-                  /> */}
+                  
                   <span className="text-sm text-slate-700 dark:text-slate-300">Inclure des explications</span>
                 </label>
                 <label className="flex items-center">
-                  {/* <input
-                    type="checkbox"
-                    // checked={projectData.config.correction.include_rubrics}
-                    onChange={(e) => updateState('config.correction.include_rubrics', e.target.checked)}
-                    className="mr-3 h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
-                  /> */}
+                  
                   <span className="text-sm text-slate-700 dark:text-slate-300">Inclure des grilles d'évaluation</span>
                 </label>
               </div>
@@ -814,31 +763,14 @@ export default function NewProjectScreen() {
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                     Format
                   </label>
-                  {/* <select
-                    value={projectData.config.output.format}
-                    onChange={(e) => updateState('config.output.format', e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="PDF">PDF</option>
-                  </select> */}
+                  
                 </div>
                 <div className="space-y-2">
                   <label className="flex items-center">
-                    {/* <input
-                      type="checkbox"
-                      // checked={projectData.config.output.structure.cover_page}
-                      onChange={(e) => updateState('config.output.structure.cover_page', e.target.checked)}
-                      className="mr-3 h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
-                    /> */}
+                    
                     <span className="text-sm text-slate-700 dark:text-slate-300">Page de couverture</span>
                   </label>
                   <label className="flex items-center">
-                    {/* <input
-                      type="checkbox"
-                      // checked={projectData.config.output.structure.answer_sheet_separate}
-                      onChange={(e) => updateState('config.output.structure.answer_sheet_separate', e.target.checked)}
-                      className="mr-3 h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
-                    /> */}
                     <span className="text-sm text-slate-700 dark:text-slate-300">Feuille de réponses séparée</span>
                   </label>
                 </div>
@@ -893,12 +825,12 @@ export default function NewProjectScreen() {
               </div>
             )}
 
-            <div className="bg-slate-900 rounded-lg p-4 overflow-x-auto">
+            {/* <div className="bg-slate-900 rounded-lg p-4 overflow-x-auto">
               <h3 className="text-slate-100 text-sm font-mono mb-2">Payload JSON</h3>
               <pre className="text-xs text-green-400 font-mono">
                 {JSON.stringify(projectData, null, 2)}
               </pre>
-            </div>
+            </div> */}
 
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
               <h3 className="font-medium text-green-800 dark:text-green-200 mb-2">
