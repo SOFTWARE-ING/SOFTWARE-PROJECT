@@ -7,7 +7,7 @@ from core.dependencies import get_db
 from controllers import crud_project
 from models.models import User
 from schemas.schemas import (
-    UserCreate, UserRead,
+    ExerciseSheetBase, UserCreate, UserRead,
     RoleCreate, RoleRead,
     SourceDocumentCreate, SourceDocumentRead,
     TranslationCreate, TranslationRead,
@@ -15,7 +15,7 @@ from schemas.schemas import (
     ExerciseSheetCreate, ExerciseSheetRead,
     ExerciseCreate, ExerciseRead,
     AIGenerationCreate, AIGenerationRead,
-    UsageStatisticCreate, UsageStatisticRead,
+    UsageStatisticCreate, UsageStatisticRead, UsageStatisticAggregate,
     GeminiRequest
 )
 from services.gemini_serv import ask_gemini
@@ -149,20 +149,27 @@ def delete_project(project_id: str, db: Session = Depends(get_db)):
 # =========================================
 # EXERCISE SHEETS
 # =========================================
-@router.post("/add_exercise_sheets/", response_model=ExerciseSheetRead)
+@router.post("/add_exercise_sheets", response_model=ExerciseSheetRead)
 def create_sheet(sheet: ExerciseSheetCreate, db: Session = Depends(get_db)):
     return crud_project.create_exercise_sheet(db=db, sheet_schema=sheet, project_id=sheet.project_id)
 
 
-@router.get("/exercise_sheets_by_project_id/{project_id}", response_model=ExerciseSheetRead)
+@router.get("/exercise_sheets_by_project_id/{project_id}", response_model=ExerciseSheetBase)
 def get_sheet(project_id: str, db: Session = Depends(get_db)):
-    return crud_project.get_exercise_sheet_by_project(db=db, project_id=project_id)
+    sheet = crud_project.get_exercise_sheet_by_project(db=db, project_id=project_id)
+    if not sheet:
+        raise HTTPException(status_code=404, detail="Exercise sheet not found for this project")
+    return sheet
+
+@router.get("/all_exercise_sheets/", response_model=List[ExerciseSheetRead])
+def get_all_sheets(db: Session = Depends(get_db)):
+    return crud_project.get_all_exercise_sheets(db=db)
 
 
 # =========================================
 # EXERCISES
 # =========================================
-@router.post("/add_exercises/", response_model=ExerciseRead)
+@router.post("/add_exercises", response_model=ExerciseRead)
 def create_exercise(exercise: ExerciseCreate, db: Session = Depends(get_db)):
     return crud_project.create_exercise(db=db, exercise_schema=exercise, sheet_id=exercise.sheet_id)
 
@@ -175,7 +182,7 @@ def list_exercises(sheet_id: str, db: Session = Depends(get_db)):
 # =========================================
 # AI GENERATIONS
 # =========================================
-@router.post("/add_ai_generations/", response_model=AIGenerationRead)
+@router.post("/add_ai_generations", response_model=AIGenerationRead)
 def create_ai_gen(ai_gen: AIGenerationCreate, db: Session = Depends(get_db)):
     return crud_project.create_ai_generation(db=db, ai_schema=ai_gen)
 
@@ -193,7 +200,7 @@ def create_usage_stat(stat: UsageStatisticCreate, db: Session = Depends(get_db))
     return crud_project.create_usage_stat(db=db, stat_schema=stat)
 
 
-@router.get("/get_usage_stats_by_user_id/{user_id}", response_model=List[UsageStatisticRead])
+@router.get("/get_usage_stats_by_user_id/{user_id}", response_model=List[UsageStatisticAggregate])
 def list_usage_stats(user_id: str, start_date: str = None, end_date: str = None, db: Session = Depends(get_db)):
     # Convert strings to date
     s = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else date.min

@@ -1,333 +1,447 @@
-import React, { useState } from 'react'
-import { FileText, Upload, Settings, Download, Sparkles, Wand2 } from 'lucide-react'
+import React, { useState, useRef, useCallback } from 'react';
+import {
+  FileText, Upload, X, CheckCircle, Cloud, Database, Clock,
+  Download, Share2, Eye, Wand2, Sparkles
+} from 'lucide-react';
+import { routingService } from '../../api_service/getRouting';
 
-export default function GenerateScreen() {
-  const [inputType, setInputType] = useState('text')
-  const [inputText, setInputText] = useState('')
-  const [uploadedFile, setUploadedFile] = useState(null)
-  const [options, setOptions] = useState({
-    format: 'pdf',
-    quality: 'high',
-    language: 'fr',
-    template: 'default'
-  })
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [generatedFile, setGeneratedFile] = useState(null)
+export default function PDFUploadOptimized() {
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [uploadProgress, setUploadProgress] = useState({});
+  const [dragActive, setDragActive] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const fileInputRef = useRef(null);
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      setUploadedFile(file)
+  const supportedFormats = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.png'];
+
+  const handleDrag = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(e.type === "dragenter" || e.type === "dragover");
+  }, []);
+
+  const simulateUpload = (fileId) => {
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 10;
+      setUploadProgress(prev => ({ ...prev, [fileId]: progress }));
+      if (progress >= 100) {
+        clearInterval(interval);
+        setUploadedFiles(prev =>
+          prev.map(f => f.id === fileId ? { ...f, status: 'uploaded', progress: 100 } : f)
+        );
+      }
+    }, 100);
+  };
+
+
+  const handleFiles = (files) => {
+    const validFiles = files.filter(file => {
+      const ext = '.' + file.name.split('.').pop().toLowerCase();
+      return supportedFormats.includes(ext);
+    });
+
+    if (validFiles.length !== files.length) {
+      alert(`Formats acceptés: ${supportedFormats.join(', ')}`);
     }
-  }
 
-  const handleOptionChange = (field, value) => {
-    setOptions(prev => ({ ...prev, [field]: value }))
-  }
+    const newFiles = validFiles.map(file => ({
+      id: Date.now() + Math.random(),
+      file,
+      name: file.name,
+      size: file.size,
+      status: 'uploading',
+      progress: 0
+    }));
 
-  const handleGenerate = async () => {
-    setIsGenerating(true)
-    // Simulate generation process
-    setTimeout(() => {
-      setGeneratedFile({
-        name: 'generated_document.pdf',
-        url: '#'
-      })
-      setIsGenerating(false)
-    }, 3000)
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+    newFiles.forEach(file => simulateUpload(file.id));
+  };
+
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    handleFiles(Array.from(e.dataTransfer.files));
+  }, []);
+
+  
+  const removeFile = (fileId) => {
+    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
+  };
+
+  const formatSize = (bytes) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+ const handleProcess = async () => {
+  if (uploadedFiles.length === 0) {
+    alert('Veuillez ajouter des fichiers');
+    return;
   }
+  
+  setIsProcessing(true);
+  
+  try {
+    // Uploader tous les fichiers
+    for (const uploadedFile of uploadedFiles) {
+      const response = await routingService.upload_document(uploadedFile.file);
+      console.log('Fichier uploadé avec succès:', response);
+    }
+    
+    alert(`✅ ${uploadedFiles.length} fichier(s) traité(s) avec succès !`);
+  } catch (error) {
+    console.error('Erreur lors de l\'upload:', error);
+    alert(`❌ Erreur: ${error.message}`);
+  } finally {
+    setIsProcessing(false);
+  }
+};
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-8">
-      <div className="flex items-center gap-3 mb-8">
-        <Wand2 className="h-8 w-8 text-indigo-600" />
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-          Générateur IA de PDF
-        </h1>
-      </div>
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-slate-950">
+      {/* Main Content */}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Section Input */}
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <FileText className="h-6 w-6 text-indigo-600" />
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                Source du document
-              </h2>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
-                  Type d'entrée
-                </label>
-                <div className="flex gap-4">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="inputType"
-                      value="text"
-                      checked={inputType === 'text'}
-                      onChange={(e) => setInputType(e.target.value)}
-                      className="mr-2"
-                    />
-                    <span className="text-slate-700 dark:text-slate-300">Texte</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="inputType"
-                      value="file"
-                      checked={inputType === 'file'}
-                      onChange={(e) => setInputType(e.target.value)}
-                      className="mr-2"
-                    />
-                    <span className="text-slate-700 dark:text-slate-300">Fichier</span>
-                  </label>
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Upload Zone - 2 columns */}
+          <div className="md:col-span-2">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+              <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+                      Upload de documents
+                    </h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                      Glissez-déposez vos fichiers
+                    </p>
+                  </div>
+                  {uploadedFiles.length > 0 && (
+                    <button
+                      onClick={() => setUploadedFiles([])}
+                      className="px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors"
+                    >
+                      <X className="w-4 h-4 inline mr-1" />
+                      Effacer tout
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {inputType === 'text' ? (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Contenu du document
-                  </label>
-                  <textarea
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    placeholder="Entrez votre texte ici..."
-                    rows={8}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+              <div
+                className={`p-8 ${dragActive ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
+                <div
+                  className={`border-3 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all ${
+                    dragActive
+                      ? 'border-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/10'
+                      : 'border-slate-300 dark:border-slate-600 hover:border-indigo-300'
+                  }`}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-linear-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 flex items-center justify-center">
+                    <Cloud className="w-10 h-10 text-indigo-500" />
+                  </div>
+                  
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                    {dragActive ? 'Déposez vos fichiers ici' : 'Cliquez ou glissez vos fichiers'}
+                  </h3>
+                  
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                    {supportedFormats.join(', ')}
+                  </p>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept={supportedFormats.join(',')}
+                    onChange={(e) => {
+                      handleFiles(Array.from(e.target.files));
+                      e.target.value = null;
+                    }}
+                    className="hidden"
                   />
+                  
+                  <button className="px-6 py-3 bg-linear-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:shadow-lg transition-all">
+                    <Upload className="w-5 h-5 inline mr-2" />
+                    Parcourir
+                  </button>
                 </div>
-              ) : (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Télécharger un fichier
-                  </label>
-                  <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-6 text-center">
-                    {uploadedFile ? (
-                      <div className="flex items-center justify-center gap-3">
-                        <FileText className="h-8 w-8 text-indigo-600" />
-                        <div>
-                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                            {uploadedFile.name}
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
+              </div>
+
+              {/* File List */}
+              {uploadedFiles.length > 0 && (
+                <div className="p-6 border-t border-slate-200 dark:border-slate-700">
+                  <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                    Fichiers ({uploadedFiles.length})
+                  </h3>
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {uploadedFiles.map(file => {
+                      const progress = uploadProgress[file.id] || 0;
+                      return (
+                        <div
+                          key={file.id}
+                          className="group bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 p-4 hover:border-indigo-300 transition-all"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-3 flex-1">
+                              <div className="relative">
+                                <div className="w-12 h-12 rounded-lg bg-linear-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 flex items-center justify-center">
+                                  <FileText className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                                </div>
+                                {file.status === 'uploaded' && (
+                                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                    <CheckCircle className="w-3 h-3 text-white" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-slate-900 dark:text-slate-100 truncate mb-1">
+                                  {file.name}
+                                </p>
+                                <div className="flex items-center gap-3 text-xs text-slate-500">
+                                  <span className="flex items-center gap-1">
+                                    <Database className="w-3 h-3" />
+                                    {formatSize(file.size)}
+                                  </span>
+                                </div>
+                                {file.status === 'uploading' && (
+                                  <div className="mt-2">
+                                    <div className="flex justify-between text-xs mb-1">
+                                      <span className="text-slate-600 dark:text-slate-300">Upload...</span>
+                                      <span className="font-medium text-indigo-600">{progress}%</span>
+                                    </div>
+                                    <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                      <div
+                                        className="h-full bg-linear-to-r from-indigo-500 to-purple-500 transition-all"
+                                        style={{ width: `${progress}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => removeFile(file.id)}
+                              className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-red-500 transition-all"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
-                        <button
-                          onClick={() => setUploadedFile(null)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <div>
-                        <Upload className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                        <p className="text-slate-600 dark:text-slate-400 mb-2">
-                          Glissez-déposez un fichier ou cliquez pour sélectionner
-                        </p>
-                        <input
-                          type="file"
-                          accept=".txt,.doc,.docx,.pdf"
-                          onChange={handleFileUpload}
-                          className="hidden"
-                          id="file-upload"
-                        />
-                        <label
-                          htmlFor="file-upload"
-                          className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 cursor-pointer transition-colors"
-                        >
-                          <Upload className="h-4 w-4 mr-2" />
-                          Sélectionner un fichier
-                        </label>
-                      </div>
-                    )}
+                      );
+                    })}
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Section Options */}
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <Settings className="h-6 w-6 text-indigo-600" />
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                Options de génération
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Format de sortie
-                </label>
-                <select
-                  value={options.format}
-                  onChange={(e) => handleOptionChange('format', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="pdf">PDF</option>
-                  <option value="docx">Word (.docx)</option>
-                  <option value="txt">Texte (.txt)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Qualité
-                </label>
-                <select
-                  value={options.quality}
-                  onChange={(e) => handleOptionChange('quality', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="low">Basse</option>
-                  <option value="medium">Moyenne</option>
-                  <option value="high">Haute</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Langue
-                </label>
-                <select
-                  value={options.language}
-                  onChange={(e) => handleOptionChange('language', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="fr">Français</option>
-                  <option value="en">English</option>
-                  <option value="es">Español</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Modèle
-                </label>
-                <select
-                  value={options.template}
-                  onChange={(e) => handleOptionChange('template', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="default">Par défaut</option>
-                  <option value="professional">Professionnel</option>
-                  <option value="academic">Académique</option>
-                  <option value="creative">Créatif</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Section Aperçu et Génération */}
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <Sparkles className="h-6 w-6 text-indigo-600" />
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                Aperçu et Génération
-              </h2>
-            </div>
-
-            <div className="space-y-4">
-              <div className="bg-slate-50 dark:bg-slate-700 rounded-lg p-4 min-h-75 flex items-center justify-center">
-                {generatedFile ? (
-                  <div className="text-center">
-                    <FileText className="h-16 w-16 text-green-600 mx-auto mb-4" />
-                    <p className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
-                      Document généré avec succès !
-                    </p>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                      {generatedFile.name}
-                    </p>
-                    <a
-                      href={generatedFile.url}
-                      download={generatedFile.name}
-                      className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Télécharger
-                    </a>
-                  </div>
-                ) : (
-                  <div className="text-center text-slate-500 dark:text-slate-400">
-                    <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                    <p>Aperçu du document généré</p>
-                    <p className="text-sm">Cliquez sur "Générer" pour créer votre PDF</p>
-                  </div>
-                )}
+          {/* Sidebar - 1 column */}
+          <div className="space-y-6">
+            {/* Action Button */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-linear-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 flex items-center justify-center">
+                  <Sparkles className="w-8 h-8 text-indigo-500" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">
+                  Prêt à traiter
+                </h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Optimisez vos documents en un clic: extraction & Analyse
+                </p>
               </div>
 
               <button
-                onClick={handleGenerate}
-                disabled={isGenerating || (!inputText && !uploadedFile)}
-                className="w-full flex items-center justify-center px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                onClick={handleProcess}
+                disabled={isProcessing || uploadedFiles.length === 0}
+                className="w-full px-6 py-4 bg-linear-to-r from-indigo-500 via-purple-500 to-pink-500 text-white rounded-xl hover:shadow-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isGenerating ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Génération en cours...
-                  </>
+                {isProcessing ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                    <span className="font-semibold">Traitement...</span>
+                  </div>
                 ) : (
-                  <>
-                    <Sparkles className="h-5 w-5 mr-2" />
-                    Générer le document
-                  </>
+                  <div className="flex items-center justify-center gap-2">
+                    <Wand2 className="w-5 h-5" />
+                    <span className="font-semibold">Transformer</span>
+                  </div>
                 )}
               </button>
-            </div>
-          </div>
 
-          {/* Section Historique */}
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
-              Documents récents
-            </h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-md">
-                <div className="flex items-center gap-3">
-                  <FileText className="h-5 w-5 text-slate-400" />
-                  <div>
-                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                      Rapport_Mensuel.pdf
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Généré il y a 2 heures
-                    </p>
-                  </div>
+              {uploadedFiles.length > 0 && !isProcessing && (
+                <p className="text-xs text-center text-slate-500 mt-3">
+                  {uploadedFiles.length} fichier(s) prêt(s)
+                </p>
+              )}
+            </div>
+
+            {/* Stats */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">
+                Statistiques
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-3 bg-linear-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl">
+                  <span className="text-sm text-blue-700 dark:text-blue-300">Fichiers</span>
+                  <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                    {uploadedFiles.length}
+                  </span>
                 </div>
-                <button className="text-indigo-600 hover:text-indigo-700">
-                  <Download className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-md">
-                <div className="flex items-center gap-3">
-                  <FileText className="h-5 w-5 text-slate-400" />
-                  <div>
-                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                      CV_Professionnel.pdf
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Généré hier
-                    </p>
-                  </div>
+                <div className="flex justify-between items-center p-3 bg-linear-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl">
+                  <span className="text-sm text-green-700 dark:text-green-300">Taille totale</span>
+                  <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                    {formatSize(uploadedFiles.reduce((sum, f) => sum + f.size, 0))}
+                  </span>
                 </div>
-                <button className="text-indigo-600 hover:text-indigo-700">
-                  <Download className="h-4 w-4" />
-                </button>
+                <div className="flex justify-between items-center p-3 bg-linear-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl">
+                  <span className="text-sm text-purple-700 dark:text-purple-300">Succès</span>
+                  <span className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                    {uploadedFiles.filter(f => f.status === 'uploaded').length}/{uploadedFiles.length}
+                  </span>
+                </div>
               </div>
             </div>
+
+            {/* Info */}
+            {/* <div className="bg-linear-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-2xl border border-indigo-200 dark:border-indigo-800 p-6">
+              <h3 className="font-semibold text-indigo-900 dark:text-indigo-100 mb-3 flex items-center gap-2">
+                <Sparkles className="w-5 h-5" />
+                Sécurité & Confidentialité
+              </h3>
+              <div className="space-y-2 text-sm text-indigo-700 dark:text-indigo-300">
+                <p>✓ Chiffrement AES-256</p>
+                <p>✓ Fichiers supprimés après 24h</p>
+                <p>✓ Conforme RGPD</p>
+                <p>✓ Traitement sécurisé</p>
+              </div>
+            </div> */}
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
+
+
+// import React, { useState, useRef, useCallback } from "react";
+// import { Upload, FileText, X, CheckCircle, Cloud } from "lucide-react";
+
+// const SUPPORTED = [".pdf", ".doc", ".docx", ".txt", ".jpg", ".png"]; 
+
+// export default function MinimalUploadPage() {
+//   const [files, setFiles] = useState([]);
+//   const [drag, setDrag] = useState(false);
+//   const inputRef = useRef(null);
+
+//   const handleFiles = useCallback((list) => {
+//     const valid = Array.from(list).filter(f =>
+//       SUPPORTED.includes("." + f.name.split(".").pop().toLowerCase())
+//     );
+
+//     const mapped = valid.map(f => ({
+//       id: crypto.randomUUID(),
+//       name: f.name,
+//       size: f.size,
+//       status: "uploaded",
+//     }));
+
+//     setFiles(prev => [...prev, ...mapped]);
+//   }, []);
+
+//   const onDrop = (e) => {
+//     e.preventDefault();
+//     setDrag(false);
+//     handleFiles(e.dataTransfer.files);
+//   };
+
+//   const formatSize = (b) => (b / 1024 / 1024).toFixed(2) + " MB";
+
+//   return (
+//     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-950 flex items-center justify-center p-6">
+//       <div className="w-full max-w-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700">
+        
+//         {/* Header */}
+//         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+//           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+//             Secure Document Upload
+//           </h1>
+//           <p className="text-sm text-slate-500 dark:text-slate-400">
+//             Upload rapide et sécurisé (drag & drop ou sélection)
+//           </p>
+        
+//         </div>
+
+//         {/* Drop zone */}
+//         <div
+//           onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+//           onDragLeave={() => setDrag(false)}
+//           onDrop={onDrop}
+//           onClick={() => inputRef.current.click()}
+//           className={`m-6 p-10 rounded-xl border-2 border-dashed cursor-pointer transition-all
+//             ${drag ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20" : "border-slate-300 dark:border-slate-600"}`}
+//         >
+//           <input
+//             ref={inputRef}
+//             type="file"
+//             multiple
+//             accept={SUPPORTED.join(",")}
+//             className="hidden"
+//             onChange={(e) => handleFiles(e.target.files)}
+//           />
+
+//           <div className="text-center">
+//             <Cloud className="w-12 h-12 mx-auto text-indigo-500 mb-4" />
+//             <p className="font-semibold text-slate-800 dark:text-slate-200">
+//               Glissez vos documents ici
+//             </p>
+//             <p className="text-sm text-slate-500">
+//               ou cliquez pour sélectionner
+//             </p>
+//           </div>
+//         </div>
+
+//         {/* File list */}
+//         {files.length > 0 && (
+//           <div className="px-6 pb-6 space-y-3">
+//             {files.map(f => (
+//               <div
+//                 key={f.id}
+//                 className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+//               >
+//                 <div className="flex items-center gap-3">
+//                   <FileText className="w-5 h-5 text-indigo-500" />
+//                   <div>
+//                     <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+//                       {f.name}
+//                     </p>
+//                     <p className="text-xs text-slate-500">{formatSize(f.size)}</p>
+//                   </div>
+//                 </div>
+//                 <CheckCircle className="w-5 h-5 text-green-500" />
+//               </div>
+//             ))}
+//           </div>
+//         )}
+
+//         {/* Footer */}
+//         <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400 text-center">
+//           Chiffrement • RGPD • Suppression automatique 24h
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }

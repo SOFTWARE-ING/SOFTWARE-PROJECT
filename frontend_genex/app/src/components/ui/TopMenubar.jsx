@@ -80,7 +80,8 @@ export default function TopMenubar() {
                 </div>
                 <div className='flex flex-col '>
                     <h2 className="text-2xl text-slate-800 dark:text-slate-200 truncate tracking-[5px] font-black">Dashboard</h2>
-                    <p className='text-xs text-slate-400 '> Welcome back! <span className='font-bold py-0.5 px-1 dark:bg-emerald-300/20 bg-emerald-500/20 rounded-md text-emerald-500'>{user?.profile.first_name}</span></p>
+                    <p className='text-xs text-slate-400 '> Welcome back!
+                         <span className='font-thin text-xs py-0.5 px-1 dark:bg-emerald-300/20 bg-emerald-500/20 rounded-md dark:text-emerald-100 text-emerald-600 italic '>{user?.first_name || "Utilisateur"}</span></p>
                 </div>
             </div>
             <div className='flex-1 flex justify-end items-center space-x-4'>

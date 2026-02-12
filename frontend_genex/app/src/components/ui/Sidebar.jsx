@@ -17,7 +17,7 @@ export default function Sidebar() {
 
   const menu = [
     { id: "dashboard", path: "/", icon: LayoutDashboard, label: "Vue d'ensemble" },
-    { id: "generate", path: "/generate", icon: Cpu, label: "Générateur IA" },
+    { id: "generate", path: "/generate", icon: Cpu, label: "Téléversement IA/OCR" },
     { id: "translate", path: "/translate", icon: Languages, label: "Traducteur PDF" },
     { id: "library", path: "/library", icon: FolderOpen, label: "Mes Documents" },
     { id: "new-project", path: "/new-project", icon: Plus, label: "Nouveau Projet" },

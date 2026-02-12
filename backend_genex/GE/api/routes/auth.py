@@ -1,19 +1,30 @@
-# api/routes/auth.py
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-# from fastapi.security import OAuth2PasswordRequestForm
-
-from core.security import verify_password, create_access_token
+from uuid import UUID
+from core.security import (
+    verify_password, 
+    create_access_token, 
+    decode_access_token,
+    blacklist_token
+)
 from core.dependencies import get_db
-from models.models import  User
+from models.models import User
 
 router = APIRouter()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 class LoginSchema(BaseModel):
     email: str
     password: str
+
+class UserResponse(BaseModel):
+    id: UUID
+    email: str
     
+    class Config:
+        from_attributes = True
 
 @router.post("/auth/login")
 def login(
@@ -28,10 +39,20 @@ def login(
             detail="Identifiants invalides"
         )
 
-    token = create_access_token({"sub": user.id})
+    token = create_access_token({"sub": str(user.id)})
 
     return {
-        "user": user,
+        "user": UserResponse.from_orm(user),
         "access_token": token,
         "token_type": "bearer"
     }
+
+@router.post("/auth/logout")
+def logout(
+    token: str = Depends(oauth2_scheme)
+):
+    # Blackliste le token
+    if blacklist_token(token):
+        return {"message": "Déconnexion réussie", "success": True}
+    
+    return {"message": "Token invalide ou expiré", "success": False}

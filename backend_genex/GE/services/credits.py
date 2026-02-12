@@ -1,8 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from models.models import \
-    User  # Assurez-vous que le modèle User est bien défini
+from models.models import User
 
 
 def decrement_credits(db: Session, user_id: str, cost: int = 1) -> User:
@@ -13,25 +12,23 @@ def decrement_credits(db: Session, user_id: str, cost: int = 1) -> User:
     # On récupère l'utilisateur
     # Note: Dans une vraie appli, on utiliserait 'with_for_update()' pour verrouiller la ligne
     # lors de transactions concurrentes critiques.
-    user = db.query(User).filter(User.uid == user_id).first()
+    user = db.query(User).filter(User.id == user_id).first()
 
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
 
-    # Vérification du type d'utilisateur (seuls les enseignants ont des crédits)
-    if user.type_utilisateur != "ENSEIGNANT":
-        # Les étudiants n'ont pas de crédits, ou logique différente
-        return user
+    profile = user.profile or {}
+    credits = profile.get("credits", 0)
 
-    # Vérification du solde
-    if user.credits < cost:
+    if credits < cost:
         raise HTTPException(
             status_code=402,
-            detail=f"Crédits insuffisants. Requis: {cost}, Disponible: {user.credits}",
+            detail=f"Crédits insuffisants. Requis: {cost}, Disponible: {credits}",
         )
 
     # Décrémentation
-    user.credits -= cost
+    profile["credits"] = credits - cost
+    user.profile = profile
 
     # On committe la transaction
     try:

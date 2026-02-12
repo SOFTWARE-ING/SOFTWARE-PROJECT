@@ -1,8 +1,9 @@
 from datetime import datetime
 import uuid
+from enum import Enum as PyEnum
 from sqlalchemy import (
-    JSON, TIMESTAMP, BigInteger, Column, Enum, ForeignKey,
-    Integer, String, Text
+    JSON, TIMESTAMP, BigInteger, Column, DateTime, Enum as SAEnum, ForeignKey, Index,
+    Integer, String, Text, func, func
 )
 from sqlalchemy.orm import relationship
 from db.base import Base
@@ -22,7 +23,7 @@ class Role(Base):
 
 
 
-class DocumentStatus(str, Enum):
+class DocumentStatus(str, PyEnum):
     UPLOADED = "UPLOADED"
     OCR_DONE = "OCR_DONE"
     AI_PROCESSING = "AI_PROCESSING"
@@ -65,19 +66,23 @@ class SourceDocument(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     filename = Column(String(255), nullable=False)
-    file_type = FileType
+    file_type = Column(
+        SAEnum(FileType, name="file_type_enum"),
+        nullable=False,
+        default=FileType.PDF
+    )
     storage_url = Column(String(500), nullable=False)
     extracted_text = Column(Text)
     original_language = Column(String(10), default="en")
     uploaded_at = Column(TIMESTAMP, default=datetime.utcnow)
     status = Column(
-    Enum(
-        "UPLOADED", "OCR_DONE", "AI_PROCESSING", "PROCESSED", "ERROR",
-        name="document_status_enum"
-    ),
-    default="UPLOADED",
-    nullable=False
-)
+        SAEnum(
+            "UPLOADED", "OCR_DONE", "AI_PROCESSING", "PROCESSED", "ERROR",
+            name="document_status_enum"
+        ),
+        default="UPLOADED",
+        nullable=False
+    )
 
 
 
@@ -157,7 +162,7 @@ class AIGeneration(Base):
     prompt = Column(Text, nullable=False)
     raw_response = Column(Text)
     tokens_used = Column(Integer, default=0)
-    status = Column(Enum("SUCCESS", "FAILED", name="generation_status_enum"), default="SUCCESS")
+    status = Column(SAEnum("SUCCESS", "FAILED", name="generation_status_enum"), default="SUCCESS")
     generated_at = Column(TIMESTAMP, default=datetime.utcnow)
 
     project = relationship("Project", back_populates="ai_generations")
@@ -174,13 +179,29 @@ class ExerciseSheet(Base):
     pdf_url_questions = Column(String(500))
     pdf_url_answers = Column(String(500))
     qr_code_link = Column(String(255))
-    status = Column(Enum("DRAFT", "GENERATED", "PUBLISHED", name="sheet_status_enum"), default="DRAFT")
+    status = Column(String(50), name="status", default="DRAFT")
     generated_at = Column(TIMESTAMP, default=datetime.utcnow)
 
     project = relationship("Project", back_populates="exercise_sheet")
     exercises = relationship(
         "Exercise", back_populates="sheet", cascade="all, delete-orphan"
     )
+        
+    
+# Token blacklist for logout
+
+class BlacklistedToken(Base):
+    __tablename__ = "blacklisted_tokens"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String(500), unique=True, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    
+    # Index pour le nettoyage automatique
+    __table_args__ = (
+        Index('idx_expires_at', 'expires_at'),
+    )   
 
 
 # ==========================
@@ -191,11 +212,7 @@ class Exercise(Base):
 
     id = Column(String(36), primary_key=True)
     sheet_id = Column(String(36), ForeignKey("exercise_sheets.id", ondelete="CASCADE"), nullable=False)
-    exercise_type = Column(
-        Enum(
-            "MCQ", "CHECKBOX", "OPEN", "FILL_IN", "TRUE_FALSE", "CROSS_TABLE", "DIAGRAM",
-            name="exercise_type_enum"
-        ),
+    exercise_type = Column( String(50),
         nullable=False
     )
     question_text = Column(Text, nullable=False)
@@ -217,7 +234,10 @@ class UsageStatistic(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    action = UsageAction
+    action = Column(
+        SAEnum(UsageAction, name="usage_action_enum"),
+        nullable=False
+    )
     credits_used = Column(Integer, default=1)
     action_date = Column(TIMESTAMP, default=datetime.utcnow)
 

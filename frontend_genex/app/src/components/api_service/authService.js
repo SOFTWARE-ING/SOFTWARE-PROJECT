@@ -1,4 +1,5 @@
-const API_BASE_URL = "http://127.0.0.1:8000/api/genex";
+// const API_BASE_URL = "http://127.0.0.1:8000/api/genex";
+import { API_BASE_URL } from "./url.js";
 
 export const authService = {
   login: async (email, password) => {

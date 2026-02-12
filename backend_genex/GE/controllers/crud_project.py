@@ -1,3 +1,4 @@
+from asyncio.log import logger
 import uuid
 from datetime import datetime, date
 from typing import List
@@ -136,6 +137,8 @@ def get_document_by_id(db: Session, doc_id: str) -> SourceDocument:
 
 
 def get_documents_by_user(db: Session, user_id: str) -> List[SourceDocument]:
+    if user_id is None:
+        return db.query(SourceDocument).all()
     return db.query(SourceDocument).filter(SourceDocument.user_id == user_id).all()
 
 
@@ -178,8 +181,16 @@ def create_translation(db: Session, translation_schema):
 # =========================================
 # EXERCISE SHEETS
 # =========================================
-def get_exercise_sheet_by_project(db: Session, project_id: str) -> ExerciseSheet:
-    return db.query(ExerciseSheet).filter(ExerciseSheet.project_id == project_id).first()
+def get_exercise_sheet_by_project(db: Session, project_id: str):
+    """Retrieve exercise sheet by project_id"""
+    try:
+        return db.query(ExerciseSheet).filter(ExerciseSheet.project_id == project_id).first()
+    except Exception as e:
+        logger.error(f"Error getting exercise sheet by project {project_id}: {e}")
+        return None
+
+def get_all_exercise_sheets(db: Session) -> List[ExerciseSheet]:
+    return db.query(ExerciseSheet).all()
 
 
 def create_exercise_sheet(db: Session, sheet_schema, project_id: str):
@@ -199,7 +210,7 @@ def get_exercises_by_sheet(db: Session, sheet_id: str) -> List[Exercise]:
 
 
 def create_exercise(db: Session, exercise_schema, sheet_id: str):
-    sheet = get_exercise_sheet_by_project(db=db, project_id=sheet_id)
+    sheet = db.query(ExerciseSheet).filter(ExerciseSheet.id == sheet_id).first()
     if not sheet:
         raise ValueError("Exercise sheet not found")
     if not hasattr(exercise_schema, "id") or not exercise_schema.id:
@@ -239,7 +250,15 @@ def get_usage_stats_by_period(
         )
         .group_by(UsageStatistic.action)
     )
-    return query.all()
+    rows = query.all()
+    return [
+        {
+            "action": row.action,
+            "count": row.count,
+            "total_credits": row.total_credits,
+        }
+        for row in rows
+    ]
 
 
 def create_usage_stat(db: Session, stat_schema):

@@ -208,3 +208,5 @@ git merge --abort
 <p align="center">
   <b>GenExPDF – Build smart. Ship clean.</b>
 </p>
+
+

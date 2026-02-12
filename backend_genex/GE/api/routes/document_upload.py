@@ -57,8 +57,6 @@ async def upload_document(
     
     # Nettoyage via Gemini
     prompt = build_gemini_prompt(raw_text)
-    extracted_text = ask_gemini(prompt)
-    
     try:
         extracted_text = ask_gemini(prompt)
     except Exception as e:

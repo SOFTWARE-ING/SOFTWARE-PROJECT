@@ -313,3 +313,38 @@ DESCRIBE ai_generations;
 DESCRIBE exercise_sheets;
 ALTER TABLE exercises MODIFY COLUMN exercise_type VARCHAR(255);
 
+-- CORRECTION DÉFINITIVE DE LA COLONNE STATUS
+-- Exécuter ce script MANUELLEMENT dans MySQL
+
+USE genex_db;  -- Remplacer par le nom de votre base
+
+-- Vérifier avant
+SHOW COLUMNS FROM exercise_sheets WHERE Field = 'status';
+
+-- Corriger la colonne (TROIS méthodes, essayer dans l'ordre)
+
+-- Méthode 1: Si c'est un ENUM
+ALTER TABLE exercise_sheets MODIFY COLUMN status VARCHAR(255) NOT NULL DEFAULT 'DRAFT';
+
+-- OU Méthode 2: Si la méthode 1 échoue
+ALTER TABLE exercise_sheets CHANGE COLUMN status status VARCHAR(255) NOT NULL DEFAULT 'DRAFT';
+
+-- OU Méthode 3: En dernier recours
+ALTER TABLE exercise_sheets DROP COLUMN status;
+ALTER TABLE exercise_sheets ADD COLUMN status VARCHAR(255) NOT NULL DEFAULT 'DRAFT' AFTER pdf_url_answers;
+
+-- Vérifier après
+SHOW COLUMNS FROM exercise_sheets WHERE Field = 'status';
+
+-- Test
+SELECT 'DRAFT' as test UNION SELECT 'PROCESSING' UNION SELECT 'COMPLETED' UNION SELECT 'FAILED';
+
+
+
+UPDATE exercise_sheets 
+SET 
+    pdf_url_questions = REPLACE(pdf_url_questions, '/pdfs/', '/generated_pdfs/sheet_0fd96926-98b5-4e1f-80ac-d0570019e1cb_questions.pdf'),
+    pdf_url_answers = REPLACE(pdf_url_answers, '/pdfs/', '/generated_pdfs/sheet_0fd96926-98b5-4e1f-80ac-d0570019e1cb_answers.pdf')
+WHERE 
+    pdf_url_questions LIKE '/pdfs/%' 
+    OR pdf_url_answers LIKE '/pdfs/%';

@@ -23,6 +23,7 @@ class UserReadLight(BaseModel):
 class ProjectReadLight(BaseModel):
     id: str
     title: str
+    
 
 class SourceDocumentReadLight(BaseModel):
     id: str
@@ -40,7 +41,11 @@ class ExerciseSheetReadLight(BaseModel):
 
 class ExerciseReadLight(BaseModel):
     id: str
+    sheet_id: str
+    exercise_type: str
     question_text: str
+    correct_answer: Optional[str] = None
+    
 
 class UsageStatisticReadLight(BaseModel):
     id: int
@@ -114,7 +119,7 @@ class SourceDocumentBase(BaseModel):
     id: str
     user_id: str
     filename: str
-    file_type: FileType
+    file_type: Optional[FileType] = None
     storage_url: str
     extracted_text: Optional[str] = None
     original_language: Optional[str] = "en"
@@ -125,7 +130,7 @@ class SourceDocumentBase(BaseModel):
 class SourceDocumentCreate(BaseModel):
     user_id: str
     filename: str
-    file_type: str
+    file_type: Optional[FileType] = None
     storage_url: str
     extracted_text: Optional[str] = None
     original_language: Optional[str] = "en"
@@ -194,7 +199,7 @@ class ProjectBase(BaseModel):
         from_attributes = True
 
 class ProjectCreate(BaseModel):
-    user_id: str
+    user_id: Optional[str] = None
     document_id: Optional[str] = None
     title: str
     config: Dict
@@ -305,6 +310,11 @@ class UsageStatisticCreate(BaseModel):
 
 class UsageStatisticRead(UsageStatisticBase):
     user: Optional[UserReadLight] = None
+
+class UsageStatisticAggregate(BaseModel):
+    action: UsageAction
+    count: int
+    total_credits: Optional[int] = 0
 
 # ==========================
 # GEMINI

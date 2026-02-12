@@ -90,7 +90,7 @@ export default function DashboardScreen() {
     <div className="flex flex-col h-screen w-screen bg-slate-50 px-4 py-3 text-slate-900 dark:bg-slate-950/30 dark:text-slate-100">
 
       {/* Title */}
-      <h1 className="mb-4 text-2xl font-bold">Tableau de bord</h1>
+      {/* <h1 className="mb-4 text-2xl font-bold">Tableau de bord</h1> */}
 
       {/* Stats */}
       <div className="mb-8 flex flex-wrap gap-4">
